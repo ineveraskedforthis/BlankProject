@@ -397,7 +397,7 @@ void state::reset_locale_pool() {
 
 void state::load_locale_strings(std::string_view locale_name) {
 	auto root_dir = get_root(common_fs);
-	auto assets_dir = open_directory(root_dir, NATIVE("assets/localisation"));
+	auto assets_dir = open_directory(root_dir, NATIVE("assets/localization"));
 
 	auto locale_dir = open_directory(assets_dir, simple_fs::utf8_to_native(locale_name));
 	for(auto& file : list_files(locale_dir, NATIVE(".csv"))) {
@@ -729,7 +729,7 @@ void state::load_user_settings() {
 
 	auto rt = get_root(common_fs);
 	auto assets = simple_fs::open_directory(rt, NATIVE("assets"));
-	auto loc = simple_fs::open_directory(assets, NATIVE("localisation"));
+	auto loc = simple_fs::open_directory(assets, NATIVE("localization"));
 	for(auto& ld : simple_fs::list_subdirectories(loc)) {
 		auto def_file = simple_fs::open_file(ld, NATIVE("locale.txt"));
 		if(def_file) {

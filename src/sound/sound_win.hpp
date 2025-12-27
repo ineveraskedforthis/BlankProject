@@ -62,56 +62,7 @@ public:
 	bool global_pause = false;
 
 	audio_instance click_sound;
-	audio_instance click_left_sound;
-	audio_instance click_right_sound;
-	audio_instance tab_budget_sound;
-	audio_instance hover_sound;
-	audio_instance checkbox_sound;
-	audio_instance enact_sound;
-	audio_instance subtab_sound;
-	audio_instance delete_sound;
-	audio_instance autochoose_sound;
-	audio_instance tab_politics_sound;
-	audio_instance tab_diplomacy_sound;
-	audio_instance tab_military_sound;
-	audio_instance tab_population_sound;
-	audio_instance tab_production_sound;
-	audio_instance tab_technology_sound;
-	audio_instance technology_finished_sound;
-	audio_instance army_move_sound;
-	audio_instance army_select_sound;
-	audio_instance navy_move_sound;
-	audio_instance navy_select_sound;
-	audio_instance declaration_of_war_sound;
-	audio_instance chat_message_sound;
-	audio_instance error_sound;
-	audio_instance peace_sound;
-	audio_instance army_built_sound;
-	audio_instance navy_built_sound;
-	audio_instance factory_built_sound;
-	audio_instance election_sound;
-	audio_instance revolt_sound;
-	audio_instance fort_built_sound;
-	audio_instance railroad_built_sound;
-	audio_instance naval_base_built_sound;
-	audio_instance minor_event_sound;
-	audio_instance major_event_sound;
-	audio_instance decline_sound;
-	audio_instance accept_sound;
-	audio_instance diplomatic_request_sound;
-	audio_instance console_open_sound;
-	audio_instance console_close_sound;
-	audio_instance land_battle_sounds[6];
-	audio_instance naval_battle_sounds[6];
-	audio_instance province_select_sounds[4];
-	audio_instance event_sound;
-	audio_instance decision_sound;
-	audio_instance pause_sound;
-	audio_instance unpause_sound;
-	audio_instance enemycapitulated;
-	audio_instance wecapitulated;
-
-
+	
 	std::vector<audio_instance> music_list;
 
 	void play_effect(audio_instance& s, float volume);

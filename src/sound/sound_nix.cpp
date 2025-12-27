@@ -85,7 +85,8 @@ void initialize_sound_system(sys::state& state) {
 	state.sound_ptr = std::make_unique<sound_impl>();
 
 	auto root_dir = simple_fs::get_root(state.common_fs);
-	auto const music_dir = simple_fs::open_directory(root_dir, NATIVE("music"));
+	auto const asset_dir = simple_fs::open_directory(root_dir, NATIVE("assets"));
+	auto const music_dir = simple_fs::open_directory(asset_dir, NATIVE("music"));
 	for(auto const& mp3_file : simple_fs::list_files(music_dir, NATIVE(".mp3"))) {
 		audio_instance audio{};
 		audio.set_file(simple_fs::get_full_name(mp3_file));
@@ -106,84 +107,12 @@ void initialize_sound_system(sys::state& state) {
 		audio_instance* audio;
 		native_string_view name;
 	} vanilla_sound_table[] = {
-		//{ &state.sound_ptr->click_sound, NATIVE("GI_ValidClick.wav") },
-		{ &state.sound_ptr->technology_finished_sound, NATIVE("UI_TechnologyFinished.wav") },
-		{ &state.sound_ptr->army_move_sound, NATIVE("GI_InfantryMove.wav") },
-		{ &state.sound_ptr->army_select_sound, NATIVE("GI_InfantrySelected.wav") },
-		{ &state.sound_ptr->navy_move_sound, NATIVE("UI_SailMove.wav") },
-		{ &state.sound_ptr->navy_select_sound, NATIVE("UI_SailSelected.wav") },
-		{ &state.sound_ptr->declaration_of_war_sound, NATIVE("DeclarationofWar.wav") },
-		{ &state.sound_ptr->chat_message_sound, NATIVE("GI_ChatMessage.wav") },
-		{ &state.sound_ptr->error_sound, NATIVE("GI_ErrorBlip.wav") },
-		{ &state.sound_ptr->peace_sound, NATIVE("Misc_Peace.wav") },
-		{ &state.sound_ptr->army_built_sound, NATIVE("UI_LandUnitFinished.wav") },
-		{ &state.sound_ptr->navy_built_sound, NATIVE("UI_NavalUnitFinished.wav") },
-		{ &state.sound_ptr->factory_built_sound, NATIVE("Misc_NewFactory.wav") },
-		{ &state.sound_ptr->revolt_sound, NATIVE("Misc_revolt.wav") },
-		{ &state.sound_ptr->fort_built_sound, NATIVE("Misc_Fortification.wav") },
-		{ &state.sound_ptr->railroad_built_sound, NATIVE("Misc_Infrastructure.wav") },
-		{ &state.sound_ptr->naval_base_built_sound, NATIVE("Misc_CoalingStation.wav") },
-		{ &state.sound_ptr->minor_event_sound, NATIVE("GI_MinorBlip.wav") },
-		{ &state.sound_ptr->major_event_sound, NATIVE("Misc_Attention.wav") },
-		{ &state.sound_ptr->decline_sound, NATIVE("GI_FailureBlip.wav") },
-		{ &state.sound_ptr->accept_sound, NATIVE("GI_SuccessBlip.wav") },
-		{ &state.sound_ptr->diplomatic_request_sound, NATIVE("GI_MessageWindow.wav") },
-		{ &state.sound_ptr->election_sound, NATIVE("Misc_ElectionHeld.wav") },
-		{ &state.sound_ptr->land_battle_sounds[0], NATIVE("Combat_Cavalry_1.wav") },
-		{ &state.sound_ptr->land_battle_sounds[1], NATIVE("Combat_Cavalry_2.wav") },
-		{ &state.sound_ptr->land_battle_sounds[2], NATIVE("Combat_Cavalry_3.wav") },
-		{ &state.sound_ptr->land_battle_sounds[3], NATIVE("Combat_Infantry_1.wav") },
-		{ &state.sound_ptr->land_battle_sounds[4], NATIVE("Combat_Infantry_2.wav") },
-		{ &state.sound_ptr->land_battle_sounds[5], NATIVE("Combat_Infantry_3.wav") },
-		{ &state.sound_ptr->naval_battle_sounds[0], NATIVE("Combat_MajorShip_1.wav") },
-		{ &state.sound_ptr->naval_battle_sounds[1], NATIVE("Combat_MajorShip_2.wav") },
-		{ &state.sound_ptr->naval_battle_sounds[2], NATIVE("Combat_MajorShip_3.wav") },
-		{ &state.sound_ptr->naval_battle_sounds[3], NATIVE("Combat_MinorShip_1.wav") },
-		{ &state.sound_ptr->naval_battle_sounds[4], NATIVE("Combat_MinorShip_2.wav") },
-		{ &state.sound_ptr->naval_battle_sounds[5], NATIVE("Combat_MinorShip_3.wav") },
+		{ &state.sound_ptr->click_sound, NATIVE("click.wav") },
 	};
-	auto const sound_directory = simple_fs::open_directory(root_dir, NATIVE("sound"));
+
+	auto const sound_directory = simple_fs::open_directory(asset_dir, NATIVE("sfx"));
 	for(const auto& e : vanilla_sound_table) {
 		auto file_peek = simple_fs::peek_file(sound_directory, e.name);
-		e.audio->set_file(file_peek ? simple_fs::get_full_name(*file_peek) : native_string());
-	}
-	struct {
-		audio_instance* audio;
-		native_string_view name;
-	} new_sound_table[] = {
-		{ &state.sound_ptr->click_sound, NATIVE("NU_AltClick.wav") },
-		{ &state.sound_ptr->click_left_sound, NATIVE("NU_ClickL.wav") },
-		{ &state.sound_ptr->click_right_sound, NATIVE("NU_ClickR.wav") },
-		{ &state.sound_ptr->console_open_sound, NATIVE("NU_OpenConsole.wav") },
-		{ &state.sound_ptr->console_close_sound, NATIVE("NU_CloseConsole.wav") },
-		{ &state.sound_ptr->tab_budget_sound, NATIVE("NU_TabBudget.wav") },
-		{ &state.sound_ptr->hover_sound, NATIVE("NU_Hover.wav") },
-		{ &state.sound_ptr->checkbox_sound, NATIVE("NU_Checkbox.wav") },
-		{ &state.sound_ptr->enact_sound, NATIVE("NU_Enact.wav") },
-		{ &state.sound_ptr->subtab_sound, NATIVE("NU_Subtab.wav") },
-		{ &state.sound_ptr->delete_sound, NATIVE("NU_Delete.wav") },
-		{ &state.sound_ptr->autochoose_sound, NATIVE("NU_Autochoose.wav") },
-		{ &state.sound_ptr->tab_politics_sound, NATIVE("NU_TabPolitics.wav") },
-		{ &state.sound_ptr->tab_diplomacy_sound, NATIVE("NU_TabDiplomacy.wav") },
-		{ &state.sound_ptr->tab_military_sound, NATIVE("NU_TabMilitary.wav") },
-		{ &state.sound_ptr->tab_population_sound, NATIVE("NU_TabPopulation.wav") },
-		{ &state.sound_ptr->tab_production_sound, NATIVE("NU_TabProduction.wav") },
-		{ &state.sound_ptr->tab_technology_sound, NATIVE("NU_TabTechnology.wav") },
-		{ &state.sound_ptr->tab_military_sound, NATIVE("NU_TabMilitary.wav") },
-		{ &state.sound_ptr->event_sound, NATIVE("NU_Event.wav") },
-		{ &state.sound_ptr->decision_sound, NATIVE("NU_Decision.wav") },
-		{ &state.sound_ptr->pause_sound, NATIVE("NU_Pause.wav") },
-		{ &state.sound_ptr->unpause_sound, NATIVE("NU_Unpause.wav") },
-		{ &state.sound_ptr->enemycapitulated, NATIVE("enemycapitulated.wav") },
-		{ &state.sound_ptr->wecapitulated, NATIVE("wecapitulated.wav") },
-		{ &state.sound_ptr->province_select_sounds[0], NATIVE("NU_ProvSelect1.wav") },
-		{ &state.sound_ptr->province_select_sounds[1], NATIVE("NU_ProvSelect2.wav") },
-		{ &state.sound_ptr->province_select_sounds[2], NATIVE("NU_ProvSelect3.wav") },
-		{ &state.sound_ptr->province_select_sounds[3], NATIVE("NU_ProvSelect4.wav") },
-	};
-	auto const assets_directory = simple_fs::open_directory(root_dir, NATIVE("\\assets"));
-	for(const auto& e : new_sound_table) {
-		auto file_peek = simple_fs::peek_file(assets_directory, e.name);
 		e.audio->set_file(file_peek ? simple_fs::get_full_name(*file_peek) : native_string());
 	}
 }
@@ -264,152 +193,6 @@ void update_music_track(sys::state& state) {
 //    we implement more of the fixed sound effects
 audio_instance& get_click_sound(sys::state& state) {
 	return state.sound_ptr->click_sound;
-}
-audio_instance& get_click_left_sound(sys::state& state) {
-	return state.sound_ptr->click_left_sound;
-}
-audio_instance& get_click_right_sound(sys::state& state) {
-	return state.sound_ptr->click_right_sound;
-}
-audio_instance& get_tab_budget_sound(sys::state& state) {
-	return state.sound_ptr->tab_budget_sound;
-}
-audio_instance& get_hover_sound(sys::state& state) {
-	return state.sound_ptr->hover_sound;
-}
-audio_instance& get_checkbox_sound(sys::state& state) {
-	return state.sound_ptr->checkbox_sound;
-}
-audio_instance& get_enact_sound(sys::state& state) {
-	return state.sound_ptr->enact_sound;
-}
-audio_instance& get_subtab_sound(sys::state& state) {
-	return state.sound_ptr->subtab_sound;
-}
-audio_instance& get_delete_sound(sys::state& state) {
-	return state.sound_ptr->delete_sound;
-}
-audio_instance& get_autochoose_sound(sys::state& state) {
-	return state.sound_ptr->autochoose_sound;
-}
-audio_instance& get_tab_politics_sound(sys::state& state) {
-	return state.sound_ptr->tab_politics_sound;
-}
-audio_instance& get_tab_diplomacy_sound(sys::state& state) {
-	return state.sound_ptr->tab_diplomacy_sound;
-}
-audio_instance& get_tab_military_sound(sys::state& state) {
-	return state.sound_ptr->tab_military_sound;
-}
-audio_instance& get_tab_population_sound(sys::state& state) {
-	return state.sound_ptr->tab_population_sound;
-}
-audio_instance& get_tab_production_sound(sys::state& state) {
-	return state.sound_ptr->tab_production_sound;
-}
-audio_instance& get_tab_technology_sound(sys::state& state) {
-	return state.sound_ptr->tab_technology_sound;
-}
-audio_instance& get_army_select_sound(sys::state& state) {
-	return state.sound_ptr->army_select_sound;
-}
-audio_instance& get_army_move_sound(sys::state& state) {
-	return state.sound_ptr->army_move_sound;
-}
-audio_instance& get_navy_select_sound(sys::state& state) {
-	return state.sound_ptr->navy_select_sound;
-}
-audio_instance& get_navy_move_sound(sys::state& state) {
-	return state.sound_ptr->navy_move_sound;
-}
-audio_instance& get_error_sound(sys::state& state) {
-	return state.sound_ptr->error_sound;
-}
-audio_instance& get_peace_sound(sys::state& state) {
-	return state.sound_ptr->peace_sound;
-}
-audio_instance& get_army_built_sound(sys::state& state) {
-	return state.sound_ptr->army_built_sound;
-}
-audio_instance& get_navy_built_sound(sys::state& state) {
-	return state.sound_ptr->navy_built_sound;
-}
-audio_instance& get_declaration_of_war_sound(sys::state& state) {
-	return state.sound_ptr->declaration_of_war_sound;
-}
-audio_instance& get_technology_finished_sound(sys::state& state) {
-	return state.sound_ptr->technology_finished_sound;
-}
-audio_instance& get_factory_built_sound(sys::state& state) {
-	return state.sound_ptr->factory_built_sound;
-}
-audio_instance& get_election_sound(sys::state& state) {
-	return state.sound_ptr->election_sound;
-}
-audio_instance& get_revolt_sound(sys::state& state) {
-	return state.sound_ptr->revolt_sound;
-}
-audio_instance& get_fort_built_sound(sys::state& state) {
-	return state.sound_ptr->fort_built_sound;
-}
-audio_instance& get_railroad_built_sound(sys::state& state) {
-	return state.sound_ptr->railroad_built_sound;
-}
-audio_instance& get_naval_base_built_sound(sys::state& state) {
-	return state.sound_ptr->naval_base_built_sound;
-}
-audio_instance& get_minor_event_sound(sys::state& state) {
-	return state.sound_ptr->minor_event_sound;
-}
-audio_instance& get_major_event_sound(sys::state& state) {
-	return state.sound_ptr->major_event_sound;
-}
-audio_instance& get_decline_sound(sys::state& state) {
-	return state.sound_ptr->decline_sound;
-}
-audio_instance& get_accept_sound(sys::state& state) {
-	return state.sound_ptr->accept_sound;
-}
-audio_instance& get_diplomatic_request_sound(sys::state& state) {
-	return state.sound_ptr->diplomatic_request_sound;
-}
-audio_instance& get_chat_message_sound(sys::state& state) {
-	return state.sound_ptr->chat_message_sound;
-}
-audio_instance& get_console_open_sound(sys::state& state) {
-	return state.sound_ptr->console_open_sound;
-}
-audio_instance& get_console_close_sound(sys::state& state) {
-	return state.sound_ptr->console_close_sound;
-}
-
-audio_instance& get_event_sound(sys::state& state) {
-	return state.sound_ptr->event_sound;
-}
-audio_instance& get_decision_sound(sys::state& state) {
-	return state.sound_ptr->decision_sound;
-}
-audio_instance& get_pause_sound(sys::state& state) {
-	return state.sound_ptr->pause_sound;
-}
-audio_instance& get_unpause_sound(sys::state& state) {
-	return state.sound_ptr->unpause_sound;
-}
-audio_instance& get_enemycapitulated_sound(sys::state& state) {
-	return state.sound_ptr->enemycapitulated;
-}
-audio_instance& get_wecapitulated_sound(sys::state& state) {
-	return state.sound_ptr->wecapitulated;
-}
-
-audio_instance& get_random_land_battle_sound(sys::state& state) {
-	return state.sound_ptr->land_battle_sounds[int32_t(std::rand() % 6)];
-}
-audio_instance& get_random_naval_battle_sound(sys::state& state) {
-	return state.sound_ptr->naval_battle_sounds[int32_t(std::rand() % 6)];
-}
-audio_instance& get_random_province_select_sound(sys::state& state) {
-	return state.sound_ptr->province_select_sounds[int32_t(std::rand() % 4)];
 }
 
 void play_new_track(sys::state& state) {
