@@ -594,19 +594,6 @@ void load_global_squares(sys::state& state) {
 	glGenBuffers(1, &state.open_gl.global_rtl_square_flipped_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, state.open_gl.global_rtl_square_flipped_buffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16, global_rtl_square_flipped_data, GL_STATIC_DRAW);
-
-	glGenBuffers(64, state.open_gl.sub_square_buffers);
-	for(uint32_t i = 0; i < 64; ++i) {
-		glBindBuffer(GL_ARRAY_BUFFER, state.open_gl.sub_square_buffers[i]);
-
-		float const cell_x = static_cast<float>(i & 7) / 8.0f;
-		float const cell_y = static_cast<float>((i >> 3) & 7) / 8.0f;
-
-		GLfloat global_sub_square_data[] = {0.0f, 0.0f, cell_x, cell_y, 0.0f, 1.0f, cell_x, cell_y + 1.0f / 8.0f, 1.0f, 1.0f,
-				cell_x + 1.0f / 8.0f, cell_y + 1.0f / 8.0f, 1.0f, 0.0f, cell_x + 1.0f / 8.0f, cell_y};
-
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 16, global_sub_square_data, GL_STATIC_DRAW);
-	}
 }
 
 void bind_vertices_by_rotation(sys::state const& state, ui::rotation r, bool flipped, bool rtl) {

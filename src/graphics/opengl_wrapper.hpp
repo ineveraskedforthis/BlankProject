@@ -201,8 +201,6 @@ struct data {
 	GLuint global_rtl_square_right_flipped_buffer = 0;
 	GLuint global_rtl_square_left_flipped_buffer = 0;
 
-	GLuint sub_square_buffers[64] = {0};
-
 	GLuint money_icon_tex = 0;
 	GLuint cross_icon_tex = 0;
 	GLuint cross_desaturated_icon_tex = 0;
