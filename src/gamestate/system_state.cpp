@@ -94,14 +94,6 @@ void state::on_drag_finished(int32_t x, int32_t y, key_modifiers mod) { // calle
 	}
 }
 void state::on_resize(int32_t x, int32_t y, window::window_state win_state) {
-	ogl::deinitialize_msaa(*this);
-	ogl::initialize_msaa(*this, x, y);
-
-	ogl::deinitialize_framebuffer_for_province_indices(*this);
-	ogl::initialize_framebuffer_for_province_indices(*this, x, y);
-
-	
-
 	if(win_state != window::window_state::minimized) {
 		ui_state.for_each_root([&](ui::element_base& elm) {
 			elm.base_data.size.x = int16_t(x / user_settings.ui_scale);
@@ -260,7 +252,7 @@ void state::render() { // called to render the frame may (and should) delay retu
 			ui_state.under_mouse->on_hover(*this);
 	}
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
