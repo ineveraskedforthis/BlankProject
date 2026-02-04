@@ -5,10 +5,9 @@
 #include <vector>
 #include <string>
 #include <string_view>
-#include "dcon_generated_ids.hpp"
+#include "data_ids.hpp"
 #include "unordered_dense.h"
 #include "fonts.hpp"
-#include "gui_graphics.hpp"
 #include "constants_ui.hpp"
 
 namespace sys {

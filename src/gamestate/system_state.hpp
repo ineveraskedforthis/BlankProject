@@ -8,17 +8,15 @@
 
 #include "window.hpp"
 #include "sound.hpp"
-#include "dcon_generated.hpp"
-#include "constants_dcon.hpp"
+#include "data.hpp"
 #include "constants.hpp"
 #include "asvg.hpp"
 #include "uitemplate.hpp"
-#include "SPSCQueue.h"
+// #include "SPSCQueue.h"
 #include "text.hpp"
 #include "game_scene.hpp"
 #include "graphics\opengl_wrapper.hpp"
 #include "gui\ui_state.hpp"
-#include "commands.hpp"
 
 
 // this header will eventually contain the highest-level objects
@@ -41,7 +39,7 @@ struct user_settings_s {
 };
 
 struct alignas(64) state {
-	dcon::data_container world; // Holds data regarding the game world. Also contains user locales.
+	// dcon::data_container world; // Holds data regarding the game world. Also contains user locales.
 
 	// scenario data
 	std::vector<char> key_data;
@@ -53,7 +51,7 @@ struct alignas(64) state {
 	std::unique_ptr<fif::environment> jit_environment;
 #endif
 
-	
+
 	//
 	// persistent user settings
 	//
@@ -83,7 +81,7 @@ struct alignas(64) state {
 	std::atomic<bool> game_state_updated = false;                    // game state -> ui signal
 	std::atomic<int32_t> actual_game_speed = 0;                      // ui -> game state message
 	std::atomic<bool> quit_signaled = false;                         // ui -> game state signal
-	rigtorp::SPSCQueue<command::command_data> incoming_commands;          // ui or network -> local gamestate
+	// rigtorp::SPSCQueue<command::command_data> incoming_commands;          // ui or network -> local gamestate
 	std::atomic<bool> ui_pause = false;                              // force pause by an important message being open
 
 	std::atomic<int64_t> tick_start_counter;

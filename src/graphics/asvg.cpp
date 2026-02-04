@@ -1,8 +1,13 @@
 #include "asvg.hpp"
 #include "lunasvg.h"
 #include <charconv>
-#include "glew.h"
-#include "system_state.hpp"
+#ifndef GLEW_STATIC
+#define GLEW_STATIC
+#endif
+#include "GL/glew.h"
+#include "simple_fs.hpp"
+
+void assert_no_errors();
 
 namespace asvg {
 
@@ -17,15 +22,23 @@ svg_instance::svg_instance(char const* bytes, int32_t sx, int32_t sy) {
 	glGenTextures(1, &texture_handle);
 	if(texture_handle) {
 		glBindTexture(GL_TEXTURE_2D, texture_handle);
+		assert_no_errors();
 		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, sx, sy);
+		assert_no_errors();
 		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, sx, sy, GL_RGBA, GL_UNSIGNED_BYTE, bytes);
+		assert_no_errors();
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		assert_no_errors();
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		assert_no_errors();
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		assert_no_errors();
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		assert_no_errors();
 
 		glBindTexture(GL_TEXTURE_2D, 0);
+		assert_no_errors();
 	}
 }
 
@@ -146,15 +159,22 @@ void svg::release_renders() {
 	renders.clear();
 }
 
-uint32_t svg::get_render(sys::state& state, float size_x, float size_y, int32_t grid_size, float scale, float r, float g, float b) {
+uint32_t svg::get_render(
+	simple_fs::file_system const& fs,
+	asvg::file_bank& svg_image_files,
+	float size_x, float size_y,
+	int32_t grid_size, float scale,
+	float r, float g, float b
+) {
 	uint64_t colorid = uint64_t(r * 255.0f) | (uint64_t(g * 255.0f) << uint64_t(8)) | (uint64_t(b * 255.0f) << uint64_t(16));
 	uint64_t idx = uint64_t(uint32_t(size_x * grid_size)) | (uint64_t(uint32_t(size_y * grid_size)) << uint64_t(20)) | (colorid << 40);
 
 	if(auto it = renders.find(idx); it != renders.end()) {
 		return it->second.texture_handle;
 	}
-	return make_new_render(state, size_x, size_y, grid_size, scale);
+	return make_new_render(fs, svg_image_files, size_x, size_y, grid_size, scale);
 }
+
 uint32_t svg::try_get_render(float size_x, float size_y, int32_t grid_size, float r, float g, float b) {
 	uint64_t colorid = uint64_t(r * 255.0f) | (uint64_t(g * 255.0f) << uint64_t(8)) | (uint64_t(b * 255.0f) << uint64_t(16));
 	uint64_t idx = uint64_t(uint32_t(size_x * grid_size)) | (uint64_t(uint32_t(size_y * grid_size)) << uint64_t(20)) | (colorid << 40);
@@ -164,7 +184,14 @@ uint32_t svg::try_get_render(float size_x, float size_y, int32_t grid_size, floa
 	}
 	return 0;
 }
-uint32_t svg::make_new_render(sys::state& state, float size_x, float size_y, int32_t grid_size, float scale, float r, float g, float b) {
+uint32_t svg::make_new_render(
+	const simple_fs::file_system& fs,
+	asvg::file_bank& svg_image_files,
+	float size_x, float size_y,
+	int32_t grid_size,
+	float scale,
+	float r, float g, float b
+) {
 	if(svg_data.size() == 0)
 		return 0;
 
@@ -203,7 +230,7 @@ uint32_t svg::make_new_render(sys::state& state, float size_x, float size_y, int
 	char cssstylesheet[] = ".primarycolor { fill: #000000; stroke: #000000; } ";
 	auto const clroffset = strlen(".primarycolor { fill: #");
 	auto const clroffset2 = strlen(".primarycolor { fill: #000000; stroke: #");
-	auto tohexdigit = [](uint32_t v) { 
+	auto tohexdigit = [](uint32_t v) {
 		char table[] = "0123456789abcdef";
 		return table[v & 0x0F];
 	};
@@ -217,8 +244,8 @@ uint32_t svg::make_new_render(sys::state& state, float size_x, float size_y, int
 	cssstylesheet[clroffset + 4] = cssstylesheet[clroffset2 + 4] = tohexdigit(bv >> 4);
 	cssstylesheet[clroffset + 5] = cssstylesheet[clroffset2 + 5] = tohexdigit(bv);
 
-	auto doc = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size(), [&state](std::string_view file_name) {
-		return state.svg_image_files.get_file_data(state, file_name);
+	auto doc = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size(), [&svg_image_files, &fs](std::string_view file_name) {
+		return svg_image_files.get_file_data(fs, file_name);
 	});
 
 	if(!doc) std::abort(); // TODO: error message
@@ -254,14 +281,18 @@ void simple_svg::release_renders() {
 	renders.clear();
 }
 
-uint32_t simple_svg::get_render(sys::state& state, int32_t size_x, int32_t size_y, float scale, float r, float g, float b) {
+uint32_t simple_svg::get_render(
+	const simple_fs::file_system& fs,
+	asvg::file_bank& svg_image_files,
+	int32_t size_x, int32_t size_y, float scale, float r, float g, float b
+) {
 	uint64_t colorid = uint64_t(r * 255.0f) | (uint64_t(g * 255.0f) << uint64_t(8)) | (uint64_t(b * 255.0f) << uint64_t(16));
 	uint64_t idx = uint64_t(uint32_t(size_x)) | (uint64_t(uint32_t(size_y)) << uint64_t(20)) | (colorid << 40);
 
 	if(auto it = renders.find(idx); it != renders.end()) {
 		return it->second.texture_handle;
 	}
-	return make_new_render(state, size_x, size_y, scale, r, g, b);
+	return make_new_render(fs, svg_image_files, size_x, size_y, scale, r, g, b);
 }
 uint32_t simple_svg::try_get_render(int32_t size_x, int32_t size_y, float r, float g, float b) {
 	uint64_t colorid = uint64_t(r * 255.0f) | (uint64_t(g * 255.0f) << uint64_t(8)) | (uint64_t(b * 255.0f) << uint64_t(16));
@@ -272,7 +303,11 @@ uint32_t simple_svg::try_get_render(int32_t size_x, int32_t size_y, float r, flo
 	}
 	return 0;
 }
-uint32_t simple_svg::make_new_render(sys::state& state, int32_t size_x, int32_t size_y, float scale, float r, float g, float b) {
+uint32_t simple_svg::make_new_render(
+	const simple_fs::file_system& fs,
+	asvg::file_bank& svg_image_files,
+	int32_t size_x, int32_t size_y, float scale, float r, float g, float b
+) {
 	if(svg_data.size() == 0)
 		return 0;
 
@@ -293,8 +328,8 @@ uint32_t simple_svg::make_new_render(sys::state& state, int32_t size_x, int32_t 
 	cssstylesheet[clroffset + 4] = cssstylesheet[clroffset2 + 4] = tohexdigit(bv >> 4);
 	cssstylesheet[clroffset + 5] = cssstylesheet[clroffset2 + 5] = tohexdigit(bv);
 
-	auto doc = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size(), [&state](std::string_view file_name) {
-		return state.svg_image_files.get_file_data(state, file_name);
+	auto doc = lunasvg::Document::loadFromData(svg_data.data(), svg_data.size(), [&svg_image_files, &fs](std::string_view file_name) {
+		return svg_image_files.get_file_data(fs, file_name);
 	});
 
 	if(!doc) std::abort(); // TODO: error message
@@ -320,11 +355,11 @@ uint32_t simple_svg::make_new_render(sys::state& state, int32_t size_x, int32_t 
 	return h;
 }
 
-std::pair<void const*, int> file_bank::get_file_data(sys::state& state, std::string_view file_name) {
+std::pair<void const*, int> file_bank::get_file_data(simple_fs::file_system const& common_fs, std::string_view file_name) {
 	if(auto it = file_contents.find(file_name); it != file_contents.end()) {
 		return std::pair<void const*, int>{(void const*)(it->second.data()), int(it->second.size()) };
 	} else {
-		auto root = simple_fs::get_root(state.common_fs);
+		auto root = simple_fs::get_root(common_fs);
 		auto assets_dir = simple_fs::open_directory(root, NATIVE("assets"));
 		auto svg_dir = simple_fs::open_directory(assets_dir, root_directory);
 		auto file = simple_fs::open_file(svg_dir, simple_fs::utf8_to_native(file_name));

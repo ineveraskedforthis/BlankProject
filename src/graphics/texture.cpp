@@ -1,9 +1,9 @@
+#include <bit>
 #include "texture.hpp"
-#include "system_state.hpp"
 #include "simple_fs.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION 1
-#define STBI_NO_STDIO 1
+// #define STBI_NO_STDIO 1
 #define STBI_NO_LINEAR 1
 #define STBI_NO_JPEG 1
 //#define STBI_NO_PNG 1
@@ -478,7 +478,7 @@ set to one or more of the following values.	*/
 		/*	OK, validated the header, let's load the image data	*/
 		width = header->dwWidth;
 		height = header->dwHeight;
-		
+
 		GLint s3tc_format = 0; //How we want to give it to shaders
 		GLint s3tc_format_layout = 0; //How's it laid on memory
 		GLint s3tc_type = GL_UNSIGNED_BYTE;
@@ -886,7 +886,7 @@ GLuint load_file_and_return_handle(native_string const& native_name, simple_fs::
 	return 0;
 }
 
-
+/*
 GLuint get_late_load_texture_handle(sys::state& state, dcon::texture_id& id, std::string_view asset_name) {
 	if(id && state.open_gl.asset_textures[id].loaded) {
 		return state.open_gl.asset_textures[id].texture_handle;
@@ -903,6 +903,7 @@ GLuint get_late_load_texture_handle(sys::state& state, dcon::texture_id& id, std
 		return load_file_and_return_handle(nname, state.common_fs, state.open_gl.asset_textures.back(), false);
 	}
 }
+*/
 
 data_texture::data_texture(int32_t sz, int32_t ch) {
 	size = sz;
@@ -999,6 +1000,34 @@ font_texture_result make_font_texture(simple_fs::file& f) {
 	STBI_FREE(data);
 
 	return font_texture_result{ ftexid, uint32_t(size_x) };
+}
+
+void texture::load(std::wstring const& file_name) {
+	simple_fs::file tex{ file_name };
+	auto content = tex.content;
+	int32_t file_channels = 4;
+	int32_t size_x = 0;
+	int32_t size_y = 0;
+	auto data = stbi_load_from_memory(reinterpret_cast<uint8_t const*>(content.data), int32_t(content.file_size), &(size_x), &(size_y), &file_channels, 4);
+	loaded = true;
+	texture_handle = 0;
+	if(data) {
+		glGenTextures(1, &texture_handle);
+		if(texture_handle) {
+			glBindTexture(GL_TEXTURE_2D, texture_handle);
+			glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, size_x, size_y);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size_x, size_y, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+			glBindTexture(GL_TEXTURE_2D, 0);
+		}
+		STBI_FREE(data);
+	}
+
 }
 
 } // namespace ogl

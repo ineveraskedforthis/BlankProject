@@ -1,8 +1,9 @@
 #pragma once
 
 #include <vector>
-#include "unordered_dense.h"
-#include "dcon_generated_ids.hpp"
+#include <algorithm>
+#include <string_view>
+#include <string>
 
 namespace sys {
 struct state; // this is here simply to declare the state struct in a very general location

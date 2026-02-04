@@ -7,7 +7,7 @@
 #ifndef GLEW_STATIC
 #define GLEW_STATIC
 #endif
-#include "glew.h"
+#include "GL/glew.h"
 
 #include "container_types.hpp"
 #include "container_types_ui.hpp"

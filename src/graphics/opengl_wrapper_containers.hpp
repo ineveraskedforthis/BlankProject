@@ -3,7 +3,7 @@
 #ifndef GLEW_STATIC
 #define GLEW_STATIC
 #endif
-#include "glew.h"
+#include "GL/glew.h"
 
 namespace ui {
 class element_base;

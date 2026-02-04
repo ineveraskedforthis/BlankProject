@@ -80,6 +80,7 @@ public:
 };
 
 class file {
+public:
 	HANDLE file_handle = INVALID_HANDLE_VALUE;
 	HANDLE mapping_handle = nullptr;
 
@@ -89,18 +90,10 @@ class file {
 	file(native_string const& full_path);
 	file(HANDLE file_handle, native_string const& full_path);
 
-public:
 	file(file const& other) = delete;
 	file(file&& other) noexcept;
 	void operator=(file const& other) = delete;
 	void operator=(file&& other) noexcept;
 	~file();
-
-	friend std::optional<file> open_file(directory const& dir, native_string_view file_name);
-	friend std::optional<file> open_file(directory const& dir, std::vector<native_string_view> file_names);
-	friend std::optional<file> open_file(unopened_file const& f);
-	friend class std::optional<file>;
-	friend file_contents view_contents(file const& f);
-	friend native_string get_full_name(file const& f);
 };
 } // namespace simple_fs

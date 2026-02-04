@@ -1,5 +1,5 @@
 #pragma once
-#include "dcon_generated_ids.hpp"
+#include "data_ids.hpp"
 #include "common_types.hpp"
 #include "constants_dcon.hpp"
 #include "constants.hpp"
@@ -9,7 +9,7 @@ namespace command {
 
 enum class command_type : uint8_t {
 	invalid = 0,
-	
+
 };
 
 

@@ -5,7 +5,6 @@
 #include "unordered_dense.h"
 #include "hb.h"
 #include <span>
-#include "graphics/opengl_wrapper.hpp"
 
 namespace sys {
 struct state;
@@ -146,7 +145,7 @@ public:
 	hb_font_t* hb_font_face = nullptr;
 	hb_buffer_t* hb_buf = nullptr;
 
-	
+
 	std::vector<uint32_t> textures;
 
 	void make_glyph(uint16_t glyph_in, int32_t subpixel);

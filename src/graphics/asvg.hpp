@@ -3,10 +3,6 @@
 #include "unordered_dense.h"
 #include "simple_fs.hpp"
 
-namespace sys {
-struct state;
-}
-
 namespace asvg {
 
 class svg_instance {
@@ -42,7 +38,7 @@ class file_bank {
 public:
 	native_string root_directory;
 	ankerl::unordered_dense::map<std::string_view, std::vector<char>> file_contents;
-	std::pair<void const*, int> get_file_data(sys::state& state, std::string_view file_name);
+	std::pair<void const*, int> get_file_data(simple_fs::file_system const& common_fs, std::string_view file_name);
 };
 
 class svg {
@@ -58,9 +54,19 @@ public:
 	svg(svg&& other) noexcept = default;
 	svg& operator=(svg&& other) noexcept = default;
 
-	uint32_t make_new_render(sys::state& state, float size_x, float size_y, int32_t grid_size, float scale, float r = 0.0f, float g = 0.0f, float b = 0.0f);
+	uint32_t make_new_render(
+		simple_fs::file_system const& fs,
+		asvg::file_bank& svg_image_files,
+		float size_x, float size_y, int32_t grid_size, float scale,
+		float r = 0.0f, float g = 0.0f, float b = 0.0f
+	);
 	void release_renders();
-	uint32_t get_render(sys::state& state, float size_x, float size_y, int32_t grid_size, float scale, float r = 0.0f, float g = 0.0f, float b = 0.0f);
+	uint32_t get_render(
+		simple_fs::file_system const& fs,
+		asvg::file_bank& svg_image_files,
+		float size_x, float size_y, int32_t grid_size, float scale,
+		float r = 0.0f, float g = 0.0f, float b = 0.0f
+	);
 	uint32_t try_get_render(float size_x, float size_y, int32_t grid_size, float r = 0.0f, float g = 0.0f, float b = 0.0f);
 };
 
@@ -74,9 +80,17 @@ public:
 	simple_svg(char const* data, size_t count);
 	simple_svg(simple_svg&& other) noexcept = default;
 	simple_svg& operator=(simple_svg&& other) noexcept = default;
-	uint32_t make_new_render(sys::state& state, int32_t size_x, int32_t size_y, float scale, float r = 0.0f, float g = 0.0f, float b = 0.0f);
+	uint32_t make_new_render(
+		simple_fs::file_system const& fs,
+		asvg::file_bank& svg_image_files,
+		int32_t size_x, int32_t size_y, float scale, float r = 0.0f, float g = 0.0f, float b = 0.0f
+	);
 	void release_renders();
-	uint32_t get_render(sys::state& state, int32_t size_x, int32_t size_y, float scale, float r = 0.0f, float g = 0.0f, float b = 0.0f);
+	uint32_t get_render(
+		const simple_fs::file_system& fs,
+		asvg::file_bank& svg_image_files, int32_t size_x, int32_t size_y, float scale,
+		float r = 0.0f, float g = 0.0f, float b = 0.0f
+	);
 	uint32_t try_get_render(int32_t size_x, int32_t size_y, float r = 0.0f, float g = 0.0f, float b = 0.0f);
 };
 

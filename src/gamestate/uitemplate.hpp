@@ -10,6 +10,8 @@
 #include "container_types.hpp"
 #include "container_types_ui.hpp"
 
+struct color3f;
+
 namespace template_project {
 
 enum class aui_text_alignment : uint8_t {

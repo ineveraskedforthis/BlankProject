@@ -1,7 +1,5 @@
 #pragma once
 
-#include "dcon_generated_ids.hpp"
-
 namespace ogl {
 
 struct color3f {

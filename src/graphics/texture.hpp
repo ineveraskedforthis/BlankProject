@@ -8,7 +8,7 @@
 #ifndef GLEW_STATIC
 #define GLEW_STATIC
 #endif
-#include "glew.h"
+#include "GL/glew.h"
 
 namespace dcon {
 class government_flag_id;
@@ -19,7 +19,7 @@ namespace ogl {
 class texture;
 
 GLuint load_file_and_return_handle(native_string const& native_name, simple_fs::file_system const& fs, texture& asset_texture, bool keep_data);
-GLuint get_late_load_texture_handle(sys::state& state, dcon::texture_id& id, std::string_view asset_name);
+// GLuint get_late_load_texture_handle(sys::state& state, dcon::texture_id& id, std::string_view asset_name);
 
 enum {
 	SOIL_FLAG_TEXTURE_REPEATS = 4,
@@ -47,10 +47,14 @@ public:
 	texture& operator=(texture&& other) noexcept;
 
 	GLuint get_texture_handle() const;
+	void load(native_string const& file_name);
 
-	friend GLuint load_file_and_return_handle(native_string const& native_name, simple_fs::file_system const& fs,
-			texture& asset_texture, bool keep_data);
-	friend GLuint get_late_load_texture_handle(sys::state& state, dcon::texture_id& id, std::string_view asset_name);
+	friend GLuint load_file_and_return_handle(
+		native_string const& native_name,
+		simple_fs::file_system const& fs,
+		texture& asset_texture,
+		bool keep_data
+	);
 };
 
 class data_texture {
