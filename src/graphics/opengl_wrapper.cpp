@@ -728,9 +728,9 @@ void render_linegraph(sys::state const& state, color_modification enabled, float
 	glUniform2ui(state.open_gl.ui_shader_subroutines_index_uniform, subroutines[0], subroutines[1]);
 	//glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 2, subroutines); // must set all subroutines in one call
 
-	
+
 	glLineWidth(2.0f);
-	
+
 	glUniform3f(state.open_gl.ui_shader_inner_color_uniform, 1.f, 1.f, 0.f);
 	glDrawArrays(GL_LINE_STRIP, 0, static_cast<GLsizei>(l.count));
 }
@@ -1133,7 +1133,7 @@ void render_new_text(sys::state& state, text::stored_glyphs const& txt, color_mo
 }
 
 void render_text(sys::state& state, text::stored_glyphs const& txt, color_modification enabled, float x, float y, color3f const& c, uint16_t font_id) {
-	auto& font = state.font_collection.get_font(state, text::font_index_from_font_id(state, font_id));
+	auto& font = state.font_collection.get_font(state, text::font_index_from_font_id(font_id));
 	render_new_text(state, txt, enabled, x, y, float(text::size_from_font_id(font_id)), c, font);
 }
 

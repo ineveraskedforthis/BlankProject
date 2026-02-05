@@ -4,13 +4,19 @@
 #include "freetype/ftglyph.h"
 #include "unordered_dense.h"
 #include "hb.h"
+#include <common_types.hpp>
 #include <span>
+#include "data_ids.hpp"
+#include "simple_fs.hpp"
 
-namespace sys {
-struct state;
+namespace dcon {
+struct data_container;
 }
 
 namespace text {
+
+using font_id = uint16_t;
+
 
 inline constexpr uint32_t max_texture_layers = 256;
 inline constexpr int magnification_factor = 4;
@@ -21,10 +27,9 @@ enum class font_selection {
 	header_font
 };
 
-uint16_t name_into_font_id(sys::state& state, std::string_view text);
 int32_t size_from_font_id(uint16_t id);
 bool is_black_from_font_id(uint16_t id);
-font_selection font_index_from_font_id(sys::state& state, uint16_t id);
+font_selection font_index_from_font_id(uint16_t id);
 
 struct glyph_sub_offset {
 	uint16_t x = 0;
@@ -119,8 +124,31 @@ struct stored_glyphs {
 	stored_glyphs(stored_glyphs const& other) noexcept = default;
 	stored_glyphs(stored_glyphs&& other) noexcept = default;
 	stored_glyphs(stored_glyphs& other, uint32_t offset, uint32_t count);
-	stored_glyphs(sys::state& state, int32_t size, font_selection type, std::span<uint16_t> s, uint32_t details_offset = 0, layout_details* d = nullptr, uint16_t font_handle = 0);
-	stored_glyphs(sys::state& state, int32_t size, font_selection type, std::span<uint16_t> s, no_bidi);
+	stored_glyphs(
+		font_manager& font_collection,
+		int32_t size,
+		std::span<uint16_t> s,
+		layout_details* d,
+		uint32_t details_offset,
+		font_id f,
+		dcon::dcon_vv_const_fat_id<uint32_t> features,
+		hb_script_t hb_script,
+		hb_language_t language,
+		bool rtl,
+		float ui_scale
+	);
+	stored_glyphs(
+		font_manager& font_collection,
+		int32_t size,
+		std::span<uint16_t> source,
+		no_bidi,
+		font_id f,
+		dcon::dcon_vv_const_fat_id<uint32_t> features,
+		hb_script_t hb_script,
+		hb_language_t language,
+		bool rtl,
+		float ui_scale
+	);
 
 	//void set_text(sys::state& state, font_selection type, std::string const& s);
 	void clear() {
@@ -152,14 +180,36 @@ public:
 	glyph_sub_offset& get_glyph(uint16_t glyph_in, int32_t subpixel);
 	void reset();
 	void create(FT_Library lib, FT_Byte* file_data, size_t file_size, int32_t real_size);
-	void remake_cache(sys::state& state, font_selection type, stored_glyphs& txt, std::span<uint16_t> source, uint32_t details_offset = 0, layout_details* d = nullptr, uint16_t font_handle = 0);
-	void remake_bidiless_cache(sys::state& state, font_selection type, stored_glyphs& txt, std::span<uint16_t> source);
-	float line_height(sys::state& state) const;
-	float ascender(sys::state& state) const;
-	float descender(sys::state& state) const;
-	float top_adjustment(sys::state& state) const;
-	float text_extent(sys::state& state, stored_glyphs const& txt, uint32_t starting_offset, uint32_t count);
-	float stateless_text_extent(float ui_scale, char const* codepoints, uint32_t count);
+	void remake_cache(
+		font_manager& font_collection,
+		stored_glyphs& txt,
+		std::span<uint16_t> source,
+		layout_details* d,
+		uint32_t details_offset,
+		font_id f,
+		dcon::dcon_vv_const_fat_id<uint32_t> features,
+		hb_script_t hb_script,
+		hb_language_t language,
+		bool rtl,
+		float ui_scale
+	);
+	void remake_bidiless_cache(
+		font_manager& font_collection,
+		stored_glyphs& txt,
+		std::span<uint16_t> source,
+		font_id f,
+		dcon::dcon_vv_const_fat_id<uint32_t> features,
+		hb_script_t hb_script,
+		hb_language_t language,
+		bool rtl,
+		float ui_scale
+	);
+	float line_height(float ui_scale) const;
+	float ascender(float ui_scale) const;
+	float descender(float ui_scale) const;
+	float top_adjustment(float ui_scale) const;
+	float text_extent(stored_glyphs const& txt, uint32_t starting_offset, uint32_t count, float ui_scale);
+	float text_extent(char const* codepoints, uint32_t count, float ui_scale);
 
 	font_at_size() = default;
 	font_at_size(font_at_size&& o) noexcept : glyph_positions(std::move(o.glyph_positions)), textures(o.textures) {
@@ -213,7 +263,7 @@ public:
 	~font();
 
 	bool can_display(char32_t ch_in) const;
-	font_at_size& retrieve_instance(sys::state& state, int32_t base_size);
+	font_at_size& retrieve_instance(text::font_manager& font_collection, int32_t base_size, float ui_scale);
 	font_at_size& retrieve_stateless_instance(FT_Library lib, int32_t base_size);
 	void reset_instances();
 
@@ -231,6 +281,7 @@ public:
 	}
 };
 
+
 class font_manager {
 public:
 	font_manager();
@@ -240,24 +291,22 @@ public:
 	FT_Library ft_library;
 private:
 	std::vector<font> font_array;
-	dcon::locale_id current_locale;
 public:
 	std::vector<uint8_t> compiled_ubrk_rules;
 	std::vector<uint8_t> compiled_char_ubrk_rules;
 	std::vector<uint8_t> compiled_word_ubrk_rules;
 	bool map_font_is_black = false;
 
-	dcon::locale_id get_current_locale() const {
-		return current_locale;
-	}
-	void change_locale(sys::state& state, dcon::locale_id l);
+	dcon::locale_id current_locale;
+	void resolve_locale(dcon::data_container data, simple_fs::file_system fs, dcon::locale_id l);
+
 	void reset_fonts();
-	font& get_font(sys::state& state, font_selection s = font_selection::body_font);
+	font& get_font(font_id f);
 	void load_font(font& fnt, char const* file_data, uint32_t file_size);
-	float line_height(sys::state& state, uint16_t font_id);
-	float text_extent(sys::state& state, stored_glyphs const& txt, uint32_t starting_offset, uint32_t count, uint16_t font_id);
+	float line_height(font_id f, float ui_scale);
+	float text_extent(stored_glyphs const& txt, uint32_t starting_offset, uint32_t count, font_id font_id, float ui_scale);
 };
 
-uint16_t make_font_id(sys::state& state, bool as_header, float target_line_size);
+font_id make_font_id(bool as_header, float target_line_size);
 
 } // namespace text

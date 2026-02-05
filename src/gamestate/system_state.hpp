@@ -43,9 +43,7 @@ struct alignas(64) state {
 
 	// scenario data
 	std::vector<char> key_data;
-	std::vector<char> locale_text_data;
 	ankerl::unordered_dense::set<dcon::text_key, text::vector_backed_ci_hash, text::vector_backed_ci_eq> untrans_key_to_text_sequence;
-	ankerl::unordered_dense::map<dcon::text_key, uint32_t, text::vector_backed_ci_hash, text::vector_backed_ci_eq> locale_key_to_text_sequence;
 
 #ifdef USE_LLVM
 	std::unique_ptr<fif::environment> jit_environment;
@@ -73,7 +71,6 @@ struct alignas(64) state {
 	std::unique_ptr<sound::sound_impl> sound_ptr = nullptr;          // platform-dependent sound information
 	ui::state ui_state;                                              // transient information for the state of the ui
 	ogl::animation ui_animation;
-	text::font_manager font_collection;
 	asvg::file_bank svg_image_files;
 	template_project::project ui_templates;
 
@@ -147,8 +144,6 @@ struct alignas(64) state {
 	bool key_is_localized(std::string_view key) const;
 	dcon::text_key lookup_key(std::string_view text) const;
 
-	void reset_locale_pool();
-	void load_locale_strings(std::string_view locale_name);
 
 	dcon::text_key add_key_utf8(std::string const& text);
 	dcon::text_key add_key_utf8(std::string_view text);

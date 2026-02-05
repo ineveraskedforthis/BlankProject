@@ -248,7 +248,7 @@ void template_label::set_text(sys::state& state, std::string_view new_text) {
 void template_label::on_reset_text(sys::state& state) noexcept {
 	cached_text.clear();
 	if(default_text)
-		set_text(state, text::produce_simple_string(state, default_text));
+		set_text(state, default_text);
 }
 void template_label::update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept {
 	text::add_line(state, contents, default_tooltip);
@@ -336,7 +336,7 @@ void template_mixed_button::on_hover_end(sys::state& state) noexcept {
 void template_mixed_button::on_reset_text(sys::state& state) noexcept {
 	cached_text.clear();
 	if(default_text)
-		set_text(state, text::produce_simple_string(state, default_text));
+		set_text(state, default_text);
 }
 void template_mixed_button::update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept {
 	text::add_line(state, contents, default_tooltip);
@@ -376,7 +376,7 @@ void template_mixed_button::render(sys::state& state, int32_t x, int32_t y) noex
 					state.ui_templates.backgrounds[bg_id].renders.get_render(state, float(base_data.size.x) / float(par->grid_size), float(base_data.size.y) / float(par->grid_size), int32_t(par->grid_size), state.user_settings.ui_scale),
 					percentage, 1.0f);
 			}
-			
+
 		} else {
 			region = state.ui_templates.mixed_button_t[template_id].primary;
 			auto active_id = state.ui_templates.mixed_button_t[template_id].active.bg;
@@ -399,7 +399,7 @@ void template_mixed_button::render(sys::state& state, int32_t x, int32_t y) noex
 			ogl::render_textured_rect_direct(state, float(x), float(y), float(base_data.size.x), float(base_data.size.y),
 				state.ui_templates.backgrounds[active_id].renders.get_render(state, float(base_data.size.x) / float(par->grid_size), float(base_data.size.y) / float(par->grid_size), int32_t(par->grid_size), state.user_settings.ui_scale));
 		}
-		
+
 	} else {
 		region = state.ui_templates.mixed_button_t[template_id].primary;
 		auto bg_id = region.bg;
@@ -591,7 +591,7 @@ void template_text_button::on_hover_end(sys::state& state) noexcept {
 void template_text_button::on_reset_text(sys::state& state) noexcept {
 	cached_text.clear();
 	if(default_text)
-		set_text(state, text::produce_simple_string(state, default_text));
+		set_text(state, default_text);
 }
 void template_text_button::update_tooltip(sys::state& state, int32_t x, int32_t y, text::columnar_layout& contents) noexcept {
 	text::add_line(state, contents, default_tooltip);
@@ -731,7 +731,7 @@ void template_toggle_button::on_hover_end(sys::state& state) noexcept {
 void template_toggle_button::on_reset_text(sys::state& state) noexcept {
 	cached_text.clear();
 	if(default_text)
-		set_text(state, text::produce_simple_string(state, default_text));
+		set_text(state, default_text);
 }
 void template_toggle_button::set_active(sys::state& state, bool active) {
 	if(active != is_active) {
@@ -1266,7 +1266,7 @@ void template_drop_down_control::open_list(sys::state& state) {
 		items_per_page = total_items;
 		one_page = true;
 	}
-	
+
 
 	auto lb = state.ui_templates.drop_down_t[template_id].list_button;
 	auto elm_h_size = int32_t(state.ui_templates.mixed_button_t[lb].primary.h_text_margins * par->grid_size + state.ui_templates.mixed_button_t[lb].primary.icon_right.resolve(float(element_x_size), float(element_y_size), float(par->grid_size)) + element_x_size);
@@ -2446,7 +2446,7 @@ void layout_window_element::remake_layout_internal(layout_level& lvl, sys::state
 			}
 			first = false;
 		}
-		
+
 	} break;
 	case layout_type::multiline_vertical:
 	{

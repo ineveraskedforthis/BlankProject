@@ -45,21 +45,21 @@ void state::on_lbutton_down(int32_t x, int32_t y, key_modifiers mod) {
 			}
 			return;
 		}
-	} 
-	
+	}
+
 	game_scene::on_lbutton_down(*this, x, y, mod);
-	
+
 }
 
 void state::on_rbutton_up(int32_t x, int32_t y, key_modifiers mod) { }
 void state::on_mbutton_up(int32_t x, int32_t y, key_modifiers mod) {
-	
+
 }
 void state::on_lbutton_up(int32_t x, int32_t y, key_modifiers mod) {
 	game_scene::on_lbutton_up(*this, x, y, mod);
 }
 void state::on_mouse_move(int32_t x, int32_t y, key_modifiers mod) {
-	
+
 	if(ui_state.under_mouse != nullptr) {
 		auto r = ui_state.under_mouse->impl_on_mouse_move(*this, ui_state.relative_mouse_location.x,
 				ui_state.relative_mouse_location.y, mod);
@@ -307,9 +307,6 @@ void state::render() { // called to render the frame may (and should) delay retu
 void state::on_create() {
 	// lua
 
-	ui_state.default_header_font = text::name_into_font_id(*this, "vic_22");
-	ui_state.default_body_font = text::name_into_font_id(*this, "vic_18");
-
 	// Load late ui defs
 	auto root = get_root(common_fs);
 	auto assets = simple_fs::open_directory(root, NATIVE("assets"));
@@ -379,25 +376,6 @@ std::string_view state::locale_string_view(uint32_t tag) const {
 			break;
 	}
 	return std::string_view(locale_text_data.data() + tag, size_t(end_position - start_position));
-}
-
-void state::reset_locale_pool() {
-	locale_text_data.clear();
-	locale_key_to_text_sequence.clear();
-	locale_text_data.push_back(0);
-}
-
-void state::load_locale_strings(std::string_view locale_name) {
-	auto root_dir = get_root(common_fs);
-	auto assets_dir = open_directory(root_dir, NATIVE("assets/localization"));
-
-	auto locale_dir = open_directory(assets_dir, simple_fs::utf8_to_native(locale_name));
-	for(auto& file : list_files(locale_dir, NATIVE(".csv"))) {
-		if(auto ofile = open_file(file); ofile) {
-			auto content = view_contents(*ofile);
-			text::consume_csv_file(*this, content.data, content.file_size, 1);
-		}
-	}
 }
 
 bool state::key_is_localized(dcon::text_key tag) const {
@@ -616,7 +594,7 @@ void add_locale(sys::state& state, std::string_view locale_name, char const* dat
 		f.resize(uint32_t(new_locale.header_font.length()));
 		f.load_range((uint8_t const*)new_locale.header_font.c_str(), (uint8_t const*)new_locale.header_font.c_str() + new_locale.header_font.length());
 	}
-	
+
 	{
 		auto f = new_locale_obj.get_body_font_features();
 		f.resize(uint32_t(new_locale.body_features.size()));
@@ -627,7 +605,7 @@ void add_locale(sys::state& state, std::string_view locale_name, char const* dat
 		f.resize(uint32_t(new_locale.header_features.size()));
 		f.load_range(new_locale.header_features.data(), new_locale.header_features.data() + new_locale.header_features.size());
 	}
-	
+
 	{
 		auto f = new_locale_obj.get_locale_name();
 		f.resize(uint32_t(locale_name.length()));
@@ -811,7 +789,7 @@ void state::game_loop() {
 
 		auto speed = actual_game_speed.load(std::memory_order::acquire);
 		auto upause = ui_pause.load(std::memory_order::acquire);
-			
+
 		if(speed <= 0 || upause || internally_paused || current_scene.enforced_pause) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(15));
 		} else {

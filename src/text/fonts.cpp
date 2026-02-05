@@ -1,15 +1,15 @@
-#include <cmath>
-#include <bit>
-
+#include <common_types.hpp>
 #include "hb.h"
 #include "hb-ft.h"
 #include "freetype/ftoutln.h"
-
 #include "fonts.hpp"
 #include "parsers.hpp"
 #include "simple_fs.hpp"
-#include "system_state.hpp"
 #include "constants.hpp"
+#include "data.hpp"
+#include <charconv>
+#include "GL/glew.h"
+
 #ifdef _WIN32
 #include <icu.h>
 #else
@@ -92,31 +92,6 @@ uint32_t font_index(std::string_view txt) {
 		return 1;
 }
 
-uint16_t name_into_font_id(sys::state& state, std::string_view txt) {
-	auto base_id = pack_font_handle(font_index(txt), is_black_font(txt), font_size(txt));
-	std::string txt_copy = [&]() {
-		if(parsers::has_fixed_suffix_ci(txt.data(), txt.data() + txt.length(), "_black")) {
-			return std::string(txt.substr(0, txt.length() - 6));
-		}
-		if(parsers::has_fixed_suffix_ci(txt.data(), txt.data() + txt.length(), "_black_bold")) {
-			return std::string(txt.substr(0, txt.length() - 11)) + "_bold";
-		}
-		return std::string(txt);
-	}();
-	uint16_t individuator = 0;
-	auto it = state.font_collection.font_names.find(uint16_t(base_id | (individuator << 8)));
-	while(it != state.font_collection.font_names.end()) {
-		if(state.to_string_view(it->second) == txt_copy) {
-			return uint16_t(base_id | (individuator << 8));
-		}
-		++individuator;
-		it = state.font_collection.font_names.find(uint16_t(base_id | (individuator << 8)));
-	}
-	auto new_key = state.add_key_utf8(txt_copy);
-	auto new_handle = uint16_t(base_id | (individuator << 8));
-	state.font_collection.font_names.insert_or_assign(new_handle, new_key);
-	return new_handle;
-}
 
 int32_t size_from_font_id(uint16_t id) {
 	auto index = uint32_t(((id >> 7) & 0x01) + 1);
@@ -129,7 +104,7 @@ int32_t size_from_font_id(uint16_t id) {
 bool is_black_from_font_id(uint16_t id) {
 	return ((id >> 6) & 0x01) != 0;
 }
-font_selection font_index_from_font_id(sys::state& state, uint16_t id) {
+font_selection font_index_from_font_id(uint16_t id) {
 	uint32_t offset = 0;
 	if(((id >> 7) & 0x01) == 0)
 		return font_selection::body_font;
@@ -137,14 +112,26 @@ font_selection font_index_from_font_id(sys::state& state, uint16_t id) {
 		return font_selection::header_font;
 }
 
-float font_manager::text_extent(sys::state& state, stored_glyphs const& txt, uint32_t starting_offset, uint32_t count, uint16_t font_id) {
-	auto& font = get_font(state, text::font_index_from_font_id(state, font_id));
-	auto size = text::size_from_font_id(font_id);
-	return float(font.retrieve_instance(state, size).text_extent(state, txt, starting_offset, count));
+float font_manager::text_extent(stored_glyphs const& txt, uint32_t starting_offset, uint32_t count, font_id f, float ui_scale) {
+	auto& font = get_font(f);
+	auto size = text::size_from_font_id(f);
+	return float(
+		font
+		.retrieve_instance(*this, size, ui_scale)
+		.text_extent(txt, starting_offset, count, ui_scale)
+	);
 }
 
-float font_manager::line_height(sys::state& state, uint16_t font_id) {
-	return float(get_font(state, text::font_index_from_font_id(state, font_id)).retrieve_instance(state, text::size_from_font_id(font_id)).line_height(state));
+float font_manager::line_height(font_id f, float ui_scale) {
+	return float(
+		get_font(
+			f
+		).retrieve_instance(
+			*this,
+			text::size_from_font_id(f),
+			ui_scale
+		).line_height(ui_scale)
+	);
 }
 
 font_manager::font_manager() {
@@ -190,11 +177,9 @@ void font_manager::reset_fonts() {
 	for(auto& f : font_array)
 		f.reset_instances();
 }
-void font_manager::change_locale(sys::state& state, dcon::locale_id l) {
-	current_locale = l;
-
+void font_manager::resolve_locale(dcon::data_container data, simple_fs::file_system fs, dcon::locale_id l) {
 	uint32_t end_language = 0;
-	auto locale_name = state.world.locale_get_locale_name(l);
+	auto locale_name = data.locale_get_locale_name(l);
 	std::string_view localename_sv((char const*)locale_name.begin(), locale_name.size());
 	while(end_language < locale_name.size()) {
 		if(localename_sv[end_language] == '-')
@@ -203,11 +188,11 @@ void font_manager::change_locale(sys::state& state, dcon::locale_id l) {
 	}
 
 	std::string lang_str{ localename_sv .substr(0, end_language) };
-	
-	state.world.locale_set_resolved_language(l, hb_language_from_string(localename_sv.data(), int(end_language)));
+
+	data.locale_set_resolved_language(l, hb_language_from_string(localename_sv.data(), int(end_language)));
 
 	{
-		auto f = state.world.locale_get_body_font(l);
+		auto f = data.locale_get_body_font(l);
 		std::string fname((char const*)f.begin(), (char const*)f.end());
 		font* resolved = nullptr;
 		uint16_t count = 0;
@@ -221,7 +206,39 @@ void font_manager::change_locale(sys::state& state, dcon::locale_id l) {
 		}
 
 		if(!resolved) {
-			auto r = simple_fs::get_root(state.common_fs);
+			auto r = simple_fs::get_root(fs);
+			auto assets = simple_fs::open_directory(r, NATIVE("assets"));
+			auto fonts = simple_fs::open_directory(assets, NATIVE("fonts"));
+			auto ff = simple_fs::open_file(fonts, simple_fs::utf8_to_native(fname));
+			if(!ff) {
+				std::abort();
+			}
+
+			font_array.emplace_back();
+			auto content = simple_fs::view_contents(*ff);
+			load_font(font_array.back(), content.data, content.file_size);
+			font_array.back().file_name = fname;
+			resolved = &(font_array.back());
+		}
+		data.locale_set_resolved_body_font(l, count);
+	}
+
+	{
+		auto f = data.locale_get_header_font(l);
+		std::string fname((char const*)f.begin(), (char const*)f.end());
+		font* resolved = nullptr;
+		uint16_t count = 0;
+
+		for(auto& fnt : font_array) {
+			if(fnt.file_name == fname) {
+				resolved = &fnt;
+				break;
+			}
+			++count;
+		}
+
+		if(!resolved) {
+			auto r = simple_fs::get_root(fs);
 			auto assets = simple_fs::open_directory(r, NATIVE("assets"));
 			auto fonts = simple_fs::open_directory(assets, NATIVE("fonts"));
 			auto ff = simple_fs::open_file(fonts, simple_fs::utf8_to_native(fname));
@@ -236,47 +253,7 @@ void font_manager::change_locale(sys::state& state, dcon::locale_id l) {
 			resolved = &(font_array.back());
 		}
 
-		state.world.locale_set_resolved_body_font(l, count);
-	}
-	{
-		auto f = state.world.locale_get_header_font(l);
-		std::string fname((char const*)f.begin(), (char const*)f.end());
-		font* resolved = nullptr;
-		uint16_t count = 0;
-
-		for(auto& fnt : font_array) {
-			if(fnt.file_name == fname) {
-				resolved = &fnt;
-				break;
-			}
-			++count;
-		}
-
-		if(!resolved) {
-			auto r = simple_fs::get_root(state.common_fs);
-			auto assets = simple_fs::open_directory(r, NATIVE("assets"));
-			auto fonts = simple_fs::open_directory(assets, NATIVE("fonts"));
-			auto ff = simple_fs::open_file(fonts, simple_fs::utf8_to_native(fname));
-			if(!ff) {
-				std::abort();
-			}
-
-			font_array.emplace_back();
-			auto content = simple_fs::view_contents(*ff);
-			load_font(font_array.back(), content.data, content.file_size);
-			font_array.back().file_name = fname;
-			resolved = &(font_array.back());
-		}
-
-		state.world.locale_set_resolved_header_font(l, count);
-	}
-
-	state.reset_locale_pool();
-
-	auto fb_name = state.world.locale_get_fallback(l);
-	if(fb_name.size() > 0) {
-		std::string_view fb_name_sv((char const*)fb_name.begin(), fb_name.size());
-		state.load_locale_strings(fb_name_sv);
+		data.locale_set_resolved_header_font(l, count);
 	}
 
 	{
@@ -290,8 +267,8 @@ void font_manager::change_locale(sys::state& state, dcon::locale_id l) {
 			std::abort(); // couldn't get_rules
 		}
 
-		state.font_collection.compiled_ubrk_rules.resize(uint32_t(rule_size));
-		ubrk_getBinaryRules(lb_it, state.font_collection.compiled_ubrk_rules.data(), rule_size, &errorCode);
+		compiled_ubrk_rules.resize(uint32_t(rule_size));
+		ubrk_getBinaryRules(lb_it, compiled_ubrk_rules.data(), rule_size, &errorCode);
 
 		ubrk_close(lb_it);
 	}
@@ -306,8 +283,8 @@ void font_manager::change_locale(sys::state& state, dcon::locale_id l) {
 			std::abort(); // couldn't get_rules
 		}
 
-		state.font_collection.compiled_char_ubrk_rules.resize(uint32_t(rule_size));
-		ubrk_getBinaryRules(ch_it, state.font_collection.compiled_char_ubrk_rules.data(), rule_size, &errorCode);
+		compiled_char_ubrk_rules.resize(uint32_t(rule_size));
+		ubrk_getBinaryRules(ch_it, compiled_char_ubrk_rules.data(), rule_size, &errorCode);
 
 		ubrk_close(ch_it);
 	}
@@ -322,33 +299,23 @@ void font_manager::change_locale(sys::state& state, dcon::locale_id l) {
 			std::abort(); // couldn't get_rules
 		}
 
-		state.font_collection.compiled_word_ubrk_rules.resize(uint32_t(rule_size));
-		ubrk_getBinaryRules(ch_it, state.font_collection.compiled_word_ubrk_rules.data(), rule_size, &errorCode);
+		compiled_word_ubrk_rules.resize(uint32_t(rule_size));
+		ubrk_getBinaryRules(ch_it, compiled_word_ubrk_rules.data(), rule_size, &errorCode);
 
 		ubrk_close(ch_it);
 	}
-
-	state.load_locale_strings(localename_sv);
 }
 
-font& font_manager::get_font(sys::state& state, font_selection s) {
-	if(!current_locale)
-		std::abort();
-	switch(s) {
-	case font_selection::body_font:
-	default:
-		return font_array[state.world.locale_get_resolved_body_font(current_locale)];
-	case font_selection::header_font:
-		return font_array[state.world.locale_get_resolved_header_font(current_locale)];
-	}
+font& font_manager::get_font(font_id f) {
+	return font_array[f];
 }
 
-font_at_size& font::retrieve_instance(sys::state& state, int32_t base_size) {
-	if(auto it = sized_fonts.find(int32_t(base_size * state.user_settings.ui_scale)); it != sized_fonts.end()) {
+font_at_size& font::retrieve_instance(text::font_manager& font_collection, int32_t base_size, float ui_scale) {
+	if(auto it = sized_fonts.find(int32_t(base_size * ui_scale)); it != sized_fonts.end()) {
 		return it->second;
 	}
-	auto t = sized_fonts.insert_or_assign(int32_t(base_size * state.user_settings.ui_scale), font_at_size{});
-	t.first->second.create(state.font_collection.ft_library, file_data.get(), file_size, int32_t(base_size * state.user_settings.ui_scale));
+	auto t = sized_fonts.insert_or_assign(int32_t(base_size * ui_scale), font_at_size{});
+	t.first->second.create(font_collection.ft_library, file_data.get(), file_size, int32_t(base_size * ui_scale));
 	return t.first->second;
 }
 
@@ -381,17 +348,17 @@ void font_manager::load_font(font& fnt, char const* file_data, uint32_t fz) {
 	memcpy(fnt.file_data.get(), file_data, fz);
 }
 
-float font_at_size::line_height(sys::state& state) const {
-	return internal_line_height / state.user_settings.ui_scale;
+float font_at_size::line_height(float ui_scale) const {
+	return internal_line_height / ui_scale;
 }
-float font_at_size::ascender(sys::state& state) const {
-	return internal_ascender / state.user_settings.ui_scale;
+float font_at_size::ascender(float ui_scale) const {
+	return internal_ascender / ui_scale;
 }
-float font_at_size::descender(sys::state& state) const {
-	return internal_descender / state.user_settings.ui_scale;
+float font_at_size::descender(float ui_scale) const {
+	return internal_descender / ui_scale;
 }
-float font_at_size::top_adjustment(sys::state& state) const {
-	return internal_top_adj  / state.user_settings.ui_scale;
+float font_at_size::top_adjustment(float ui_scale) const {
+	return internal_top_adj  / ui_scale;
 }
 
 bool font::can_display(char32_t ch_in) const {
@@ -428,7 +395,7 @@ void font_at_size::make_glyph(uint16_t glyph_in, int32_t subpixel) {
 			glyph_positions.insert_or_assign((uint32_t(glyph_in) << 2) | uint32_t(subpixel & 3), gso);
 			return;
 		}
-		
+
 		FT_Bitmap const& bitmap = ((FT_BitmapGlyphRec*)g_result)->bitmap;
 
 		assert(bitmap.rows <= 1024 && bitmap.width <= 1024);
@@ -491,11 +458,63 @@ void font_at_size::make_glyph(uint16_t glyph_in, int32_t subpixel) {
 	}
 }
 
-stored_glyphs::stored_glyphs(sys::state& state, int32_t size, font_selection type, std::span<uint16_t> s, uint32_t details_offset, layout_details* d, uint16_t font_handle) {
-	state.font_collection.get_font(state, type).retrieve_instance(state, size).remake_cache(state, type, *this, s, details_offset, d, font_handle);
+stored_glyphs::stored_glyphs(
+	font_manager& font_collection,
+	int32_t size,
+	std::span<uint16_t> s,
+	layout_details* d,
+	uint32_t details_offset,
+	font_id f,
+	dcon::dcon_vv_const_fat_id<uint32_t> features,
+	hb_script_t hb_script,
+	hb_language_t language,
+	bool rtl,
+	float ui_scale
+) {
+	font_collection
+		.get_font(f)
+		.retrieve_instance(font_collection, size, ui_scale)
+		.remake_cache(
+			font_collection,
+			*this,
+			s,
+			d,
+			details_offset,
+			f,
+			features,
+			hb_script,
+			language,
+			rtl,
+			ui_scale
+		);
 }
-stored_glyphs::stored_glyphs(sys::state& state, int32_t size, font_selection type, std::span<uint16_t> s, no_bidi) {
-	state.font_collection.get_font(state, type).retrieve_instance(state, size).remake_bidiless_cache(state, type, *this, s);
+
+stored_glyphs::stored_glyphs(
+	font_manager& font_collection,
+	int32_t size,
+	std::span<uint16_t> source,
+	no_bidi,
+	font_id f,
+	dcon::dcon_vv_const_fat_id<uint32_t> features,
+	hb_script_t hb_script,
+	hb_language_t language,
+	bool rtl,
+	float ui_scale
+) {
+	font_collection
+		.get_font(f)
+		.retrieve_instance(font_collection, size, ui_scale)
+		.remake_bidiless_cache(
+			font_collection,
+			*this,
+			source,
+			f,
+			features,
+			hb_script,
+			language,
+			rtl,
+			ui_scale
+		);
 }
 
 stored_glyphs::stored_glyphs(stored_glyphs& other, uint32_t offset, uint32_t count) {
@@ -503,13 +522,24 @@ stored_glyphs::stored_glyphs(stored_glyphs& other, uint32_t offset, uint32_t cou
 	std::copy_n(other.glyph_info.data() + offset, count, glyph_info.data());
 }
 
-void font_at_size::remake_cache(sys::state& state, font_selection type, stored_glyphs& txt, std::span<uint16_t> source, uint32_t details_offset, layout_details* d, uint16_t font_handle) {
+void font_at_size::remake_cache(
+	font_manager& font_collection,
+	stored_glyphs& txt,
+	std::span<uint16_t> source,
+	layout_details* d,
+	uint32_t details_offset,
+	font_id f,
+	dcon::dcon_vv_const_fat_id<uint32_t> features,
+	hb_script_t hb_script,
+	hb_language_t language,
+	bool rtl,
+	float ui_scale
+) {
 	txt.glyph_info.clear();
 
 	if(source.size() == 0)
 		return;
 
-	auto locale = state.font_collection.get_current_locale();
 	UBiDi* para;
 	UErrorCode errorCode = U_ZERO_ERROR;
 
@@ -519,7 +549,6 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 		std::abort();
 
 	hb_feature_t feature_buffer[10];
-	auto features = type == font_selection::body_font ? state.world.locale_get_body_font_features(locale) :  state.world.locale_get_header_font_features(locale) ;
 	for(uint32_t i = 0; i < uint32_t(std::extent_v<decltype(feature_buffer)>) && i < features.size(); ++i) {
 		feature_buffer[i].tag = features[i];
 		feature_buffer[i].start = 0;
@@ -528,7 +557,14 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 	}
 	uint32_t hb_feature_count = std::min(features.size(), uint32_t(std::extent_v<decltype(feature_buffer)>));
 
-	ubidi_setPara(para, (UChar const*)(source.data()), int32_t(source.size()), state.world.locale_get_native_rtl(locale) ? 1 : 0, nullptr, &errorCode);
+	ubidi_setPara(
+		para,
+		(UChar const*)(source.data()),
+		int32_t(source.size()),
+		rtl ? 1 : 0,
+		nullptr,
+		&errorCode
+	);
 
 	if(U_SUCCESS(errorCode)) {
 		auto runcount = ubidi_countRuns(para, &errorCode);
@@ -549,8 +585,8 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 				hb_buffer_add_utf16(hb_buf, source.data(), int32_t(source.size()), logical_start, length);
 
 				hb_buffer_set_direction(hb_buf, direction == UBIDI_RTL ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
-				hb_buffer_set_script(hb_buf, (hb_script_t)state.world.locale_get_hb_script(locale));
-				hb_buffer_set_language(hb_buf, state.world.locale_get_resolved_language(locale));
+				hb_buffer_set_script(hb_buf, hb_script);
+				hb_buffer_set_language(hb_buf, language);
 
 				hb_shape(hb_font_face, hb_buf, feature_buffer, hb_feature_count);
 
@@ -559,7 +595,13 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 				hb_glyph_position_t* glyph_pos = hb_buffer_get_glyph_positions(hb_buf, &gcount);
 
 				if(d) {
-					UBreakIterator* cb_it = ubrk_openBinaryRules(state.font_collection.compiled_char_ubrk_rules.data(), int32_t(state.font_collection.compiled_char_ubrk_rules.size()), (UChar const*)(source.data() + logical_start), int32_t(length), &errorCode);
+					UBreakIterator* cb_it = ubrk_openBinaryRules(
+						font_collection.compiled_char_ubrk_rules.data(),
+						int32_t(font_collection.compiled_char_ubrk_rules.size()),
+						(UChar const*)(source.data() + logical_start),
+						int32_t(length),
+						&errorCode
+					);
 
 					if(!cb_it || !U_SUCCESS(errorCode)) {
 						std::abort(); // couldn't create iterator
@@ -633,7 +675,13 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 					ubrk_close(cb_it);
 
 					// find word breaks
-					UBreakIterator* wb_it = ubrk_openBinaryRules(state.font_collection.compiled_word_ubrk_rules.data(), int32_t(state.font_collection.compiled_word_ubrk_rules.size()), (UChar const*)(source.data() + logical_start), int32_t(length), &errorCode);
+					UBreakIterator* wb_it = ubrk_openBinaryRules(
+						font_collection.compiled_word_ubrk_rules.data(),
+						int32_t(font_collection.compiled_word_ubrk_rules.size()),
+						(UChar const*)(source.data() + logical_start),
+						int32_t(length),
+						&errorCode
+					);
 
 					if(!wb_it || !U_SUCCESS(errorCode)) {
 						std::abort(); // couldn't create iterator
@@ -681,12 +729,12 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 						for(unsigned int j = 0; j < gcount; j++) {
 							auto rendering_details_for = glyph_info[j].cluster + details_offset;
 							if(uint16_t(rendering_details_for) < d->grapheme_placement[k].source_offset) {
-								accumulated_advance += glyph_pos[j].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale);
+								accumulated_advance += glyph_pos[j].x_advance / (text::fixed_to_fp * ui_scale);
 							}
 							if(uint16_t(rendering_details_for) == d->grapheme_placement[k].source_offset) {
 								matched_exactly = true;
 								d->grapheme_placement[k].x_offset = int16_t(accumulated_advance + total_x_advance);
-								d->grapheme_placement[k].width = int16_t(glyph_pos[j].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale));
+								d->grapheme_placement[k].width = int16_t(glyph_pos[j].x_advance / (text::fixed_to_fp * ui_scale));
 								break;
 							} else if(uint16_t(rendering_details_for) < d->grapheme_placement[k].source_offset
 								&& int32_t(rendering_details_for) > best_match) {
@@ -699,7 +747,7 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 							if(best_match != -1) {
 								// scan added exgc to find the range associated with this grapheme cluster
 								auto rendering_details_for = glyph_info[best_match_index].cluster + details_offset;
-								accumulated_advance -= glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale);
+								accumulated_advance -= glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * ui_scale);
 
 								int32_t start_exgc = -1;
 
@@ -717,19 +765,19 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 									if(direction == UBIDI_RTL) {
 										for(int32_t m = start_exgc; m <= int32_t(k); ++m) {
 											d->grapheme_placement[k].x_offset = int16_t(accumulated_advance + total_x_advance +
-												(glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale) * (count_in_range - (m - start_exgc + 1))) / count_in_range);
+												(glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * ui_scale) * (count_in_range - (m - start_exgc + 1))) / count_in_range);
 											d->grapheme_placement[k].width = int16_t(
-												(glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale) * (count_in_range - (m - start_exgc))) / count_in_range
-												- (glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale) * (count_in_range - (m - start_exgc + 1))) / count_in_range
+												(glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * ui_scale) * (count_in_range - (m - start_exgc))) / count_in_range
+												- (glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * ui_scale) * (count_in_range - (m - start_exgc + 1))) / count_in_range
 											);
 										}
 									} else {
 										for(int32_t m = start_exgc; m <= int32_t(k); ++m) {
 											d->grapheme_placement[k].x_offset = int16_t(accumulated_advance + total_x_advance +
-												(glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale) * (m - start_exgc)) / count_in_range);
+												(glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * ui_scale) * (m - start_exgc)) / count_in_range);
 											d->grapheme_placement[k].width = int16_t(
-												(glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale) * (1 + m - start_exgc)) / count_in_range
-												- (glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale) * (m - start_exgc)) / count_in_range
+												(glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * ui_scale) * (1 + m - start_exgc)) / count_in_range
+												- (glyph_pos[best_match_index].x_advance / (text::fixed_to_fp * ui_scale) * (m - start_exgc)) / count_in_range
 											);
 										}
 									}
@@ -740,7 +788,7 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 				}
 
 				for(unsigned int j = 0; j < gcount; j++) { // Preload glyphs
-					total_x_advance += glyph_pos[j].x_advance / (text::fixed_to_fp * state.user_settings.ui_scale);
+					total_x_advance += glyph_pos[j].x_advance / (text::fixed_to_fp * ui_scale);
 					//make_glyph(uint16_t(glyph_info[j].codepoint));
 					txt.glyph_info.emplace_back(glyph_info[j], glyph_pos[j]);
 				}
@@ -757,16 +805,22 @@ void font_at_size::remake_cache(sys::state& state, font_selection type, stored_g
 	ubidi_close(para);
 }
 
-void font_at_size::remake_bidiless_cache(sys::state& state, font_selection type, stored_glyphs& txt, std::span<uint16_t> source) {
+void font_at_size::remake_bidiless_cache(
+	font_manager& font_collection,
+	stored_glyphs& txt,
+	std::span<uint16_t> source,
+	font_id f,
+	dcon::dcon_vv_const_fat_id<uint32_t> features,
+	hb_script_t hb_script,
+	hb_language_t language,
+	bool rtl,
+	float ui_scale
+) {
 	txt.glyph_info.clear();
 	if(source.size() == 0)
 		return;
 
-
-	auto locale = state.font_collection.get_current_locale();
-	
 	hb_feature_t feature_buffer[10];
-	auto features = type == font_selection::body_font ? state.world.locale_get_body_font_features(locale) : state.world.locale_get_header_font_features(locale);
 	for(uint32_t i = 0; i < uint32_t(std::extent_v<decltype(feature_buffer)>) && i < features.size(); ++i) {
 		feature_buffer[i].tag = features[i];
 		feature_buffer[i].start = 0;
@@ -779,9 +833,9 @@ void font_at_size::remake_bidiless_cache(sys::state& state, font_selection type,
 	hb_buffer_clear_contents(hb_buf);
 	hb_buffer_add_utf16(hb_buf, source.data(), int32_t(source.size()), 0, int32_t(source.size()));
 
-	hb_buffer_set_direction(hb_buf, state.world.locale_get_native_rtl(locale) ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
-	hb_buffer_set_script(hb_buf, (hb_script_t)state.world.locale_get_hb_script(locale));
-	hb_buffer_set_language(hb_buf, state.world.locale_get_resolved_language(locale));
+	hb_buffer_set_direction(hb_buf, rtl ? HB_DIRECTION_RTL : HB_DIRECTION_LTR);
+	hb_buffer_set_script(hb_buf, hb_script);
+	hb_buffer_set_language(hb_buf, language);
 
 	hb_shape(hb_font_face, hb_buf, feature_buffer, hb_feature_count);
 
@@ -794,23 +848,23 @@ void font_at_size::remake_bidiless_cache(sys::state& state, font_selection type,
 		txt.glyph_info.emplace_back(glyph_info[j], glyph_pos[j]);
 	}
 
-	if(state.world.locale_get_native_rtl(locale)) {
+	if(rtl) {
 		std::reverse(txt.glyph_info.begin(), txt.glyph_info.end());
 	}
 }
 
 
-float font_at_size::text_extent(sys::state& state, stored_glyphs const& txt, uint32_t starting_offset, uint32_t count) {
+float font_at_size::text_extent(stored_glyphs const& txt, uint32_t starting_offset, uint32_t count, float ui_scale) {
 	float x_total = 0.0f;
 	for(uint32_t i = starting_offset; i < starting_offset + count; i++) {
 		hb_codepoint_t glyphid = txt.glyph_info[i].codepoint;
 		float x_advance = float(txt.glyph_info[i].x_advance) / text::fixed_to_fp;
 		x_total += x_advance;
 	}
-	return x_total / state.user_settings.ui_scale;
+	return x_total / ui_scale;
 }
 
-float font_at_size::stateless_text_extent(float ui_scale, char const* codepoints, uint32_t count) {
+float font_at_size::text_extent(char const* codepoints, uint32_t count, float ui_scale) {
 	hb_buffer_clear_contents(hb_buf);
 	hb_buffer_add_utf8(hb_buf, codepoints, int(count), 0, int(count));
 	hb_buffer_guess_segment_properties(hb_buf);
@@ -830,15 +884,11 @@ float font_at_size::stateless_text_extent(float ui_scale, char const* codepoints
 	return x / ui_scale;
 }
 
-uint16_t make_font_id(sys::state& state, bool as_header, float target_line_size) {
+uint16_t make_font_id(bool as_header, float target_line_size) {
 	int32_t calculated_size = int32_t(target_line_size);
 	if(as_header) {
-		//auto jvalue = state.font_collection.get_font(state, font_selection::header_font).line_height(1);
-		//calculated_size = int32_t((target_line_size / jvalue) * 4.0f / 3.0f);
 		return uint16_t((1 << 7) | (0x3F & calculated_size));
 	} else {
-		//auto jvalue = state.font_collection.get_font(state, font_selection::body_font).line_height(1);
-		//calculated_size = int32_t((target_line_size / jvalue) * 6.0f / 5.0f);
 		return uint16_t((0 << 7) | (0x3F & calculated_size));
 	}
 }

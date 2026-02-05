@@ -229,7 +229,7 @@ void render_text_chunk(
 	ogl::color_modification cmod
 ) {
 	auto font_size = float(text::size_from_font_id(font_id));
-	auto font_index = text::font_index_from_font_id(state, font_id);
+	auto font_index = text::font_index_from_font_id(font_id);
 	auto& current_font = state.font_collection.get_font(state, font_index);
 
 	if(std::holds_alternative<text::embedded_icon>(t.source)) {
@@ -703,7 +703,7 @@ void edit_box_element_base::internal_on_text_changed(sys::state& state) {
 		text::single_line_layout sl{ internal_layout, text::layout_parameters{ 0, 0, static_cast<int16_t>(base_data.size.x - hmargin * 2), static_cast<int16_t>(base_data.size.y), fh, 0, al, text::text_color::black, true, true }, state.world.locale_get_native_rtl(state.font_collection.get_current_locale()) ? text::layout_base::rtl_status::rtl : text::layout_base::rtl_status::ltr };
 		sl.edit_details = &glyph_details;
 		sl.add_text(state, cached_text);
-	} 
+	}
 
 	// TODO accessibility integration
 	//if(acc_obj && win.is_visible(l_id)) {
@@ -1964,7 +1964,7 @@ void tool_tip::render(sys::state& state, int32_t x, int32_t y) noexcept {
 
 
 	for(auto& t : internal_layout.contents) {
-		auto& f = state.font_collection.get_font(state, text::font_index_from_font_id(state, state.ui_state.default_body_font));
+		auto& f = state.font_collection.get_font(state, text::font_index_from_font_id(state.ui_state.default_body_font));
 		render_text_chunk(
 			state,
 			t,

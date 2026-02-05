@@ -760,7 +760,7 @@ struct int_percentage {
 struct int_wholenum {
 	int32_t value = 0;
 };
-using substitution = std::variant<std::string_view, dcon::text_key, int64_t, fp_one_place, std::monostate, fp_two_places, fp_three_places, fp_four_places,
+using substitution = std::variant<std::string_view, int64_t, fp_one_place, std::monostate, fp_two_places, fp_three_places, fp_four_places,
 		pretty_integer, fp_percentage, fp_percentage_one_place, fp_percentage_two_places, int_percentage, int_wholenum,
 		embedded_icon>;
 using substitution_map = ankerl::unordered_dense::map<uint32_t, substitution>;
@@ -902,8 +902,6 @@ void add_to_substitution_map(substitution_map& mp, variable_type key, std::strin
 void consume_csv_file(sys::state& state, char const* file_content, uint32_t file_size, int32_t target_column);
 variable_type variable_type_from_name(std::string_view);
 char16_t win1250toUTF16(char in);
-std::string produce_simple_string(sys::state const& state, std::string_view key);
-std::string produce_simple_string(sys::state const& state, dcon::text_key id);
 text::alignment localized_alignment(sys::state& state, text::alignment in);
 ui::alignment localized_alignment(sys::state& state, ui::alignment in);
 text::alignment to_text_alignment(ui::alignment in);

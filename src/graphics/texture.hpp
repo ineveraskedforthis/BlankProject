@@ -28,9 +28,8 @@ enum {
 GLuint SOIL_direct_load_DDS_from_memory(unsigned char const* const buffer, uint32_t buffer_length, uint32_t& width, uint32_t& height, int soil_flags);
 
 class texture {
-	GLuint texture_handle = 0;
-
 public:
+	GLuint texture_handle = 0;
 	uint8_t* data = nullptr;
 	int32_t size_x = 0;
 	int32_t size_y = 0;
