@@ -23,7 +23,9 @@
 // that represent the overall state of the program
 // it will also include the game state itself eventually as a member
 
+
 namespace sys {
+
 struct user_settings_s {
 	float ui_scale = 1.0f;
 	float master_volume = 0.5f;
@@ -37,6 +39,7 @@ struct user_settings_s {
 	bool mute_on_focus_lost = true;
 	char locale[16] = "en-US";
 };
+
 
 struct alignas(64) state {
 	// dcon::data_container world; // Holds data regarding the game world. Also contains user locales.

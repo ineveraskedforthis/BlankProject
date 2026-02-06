@@ -649,9 +649,7 @@ constexpr inline float fixed_to_fp = float(1 << 6); // this constant is used to 
 
 
 namespace ogl {
-enum class color_modification {
-	none, disabled, interactable, interactable_disabled
-};
+
 namespace parameters {
 inline constexpr uint32_t screen_width = 0;
 inline constexpr uint32_t screen_height = 1;
