@@ -4,9 +4,6 @@
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 
-#include "system_state.hpp"
-#include "game_scene.hpp"
-
 #include <Windows.h>
 #include <shellapi.h>
 #include "Objbase.h"
@@ -55,8 +52,8 @@ int WINAPI wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWSTR
 
 		// scenario loading functions (would have to run these even when scenario is pre-built)
 		game_state.load_user_settings();
-		
-		
+
+
 		std::thread update_thread([&]() { game_state.game_loop(); });
 
 		// entire game runs during this line
@@ -64,7 +61,7 @@ int WINAPI wWinMain(HINSTANCE /*hInstance*/, HINSTANCE /*hPrevInstance*/, LPWSTR
 		game_state.quit_signaled.store(true, std::memory_order_release);
 
 		update_thread.join();
-		
+
 
 		CoUninitialize();
 	}

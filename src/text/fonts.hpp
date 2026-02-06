@@ -27,9 +27,9 @@ enum class font_selection {
 	header_font
 };
 
-int32_t size_from_font_id(uint16_t id);
-bool is_black_from_font_id(uint16_t id);
-font_selection font_index_from_font_id(uint16_t id);
+// int32_t size_from_font_id(uint16_t id);
+// bool is_black_from_font_id(uint16_t id);
+// font_selection font_index_from_font_id(uint16_t id);
 
 struct glyph_sub_offset {
 	uint16_t x = 0;
@@ -131,7 +131,7 @@ struct stored_glyphs {
 		layout_details* d,
 		uint32_t details_offset,
 		font_id f,
-		dcon::dcon_vv_const_fat_id<uint32_t> features,
+		dcon::dcon_vv_fat_id<uint32_t> features,
 		hb_script_t hb_script,
 		hb_language_t language,
 		bool rtl,
@@ -143,7 +143,7 @@ struct stored_glyphs {
 		std::span<uint16_t> source,
 		no_bidi,
 		font_id f,
-		dcon::dcon_vv_const_fat_id<uint32_t> features,
+		dcon::dcon_vv_fat_id<uint32_t> features,
 		hb_script_t hb_script,
 		hb_language_t language,
 		bool rtl,
@@ -167,7 +167,7 @@ private:
 	uint32_t internal_tx_line_xpos = 1024;
 	uint32_t internal_tx_line_ypos = 1024;
 	int32_t px_size = 0;
-	ankerl::unordered_dense::map<uint32_t, glyph_sub_offset> glyph_positions;
+	ankerl::unordered_dense::map<uint32_t, glyph_sub_offset> glyph_positions{};
 public:
 	FT_Face font_face = nullptr;
 	hb_font_t* hb_font_face = nullptr;
@@ -187,7 +187,7 @@ public:
 		layout_details* d,
 		uint32_t details_offset,
 		font_id f,
-		dcon::dcon_vv_const_fat_id<uint32_t> features,
+		dcon::dcon_vv_fat_id<uint32_t> features,
 		hb_script_t hb_script,
 		hb_language_t language,
 		bool rtl,
@@ -198,7 +198,7 @@ public:
 		stored_glyphs& txt,
 		std::span<uint16_t> source,
 		font_id f,
-		dcon::dcon_vv_const_fat_id<uint32_t> features,
+		dcon::dcon_vv_fat_id<uint32_t> features,
 		hb_script_t hb_script,
 		hb_language_t language,
 		bool rtl,
@@ -291,20 +291,34 @@ public:
 	FT_Library ft_library;
 private:
 	std::vector<font> font_array;
+	font_manager(font_manager const&) = delete;
+	font_manager& operator=(font_manager const&) = delete;
 public:
 	std::vector<uint8_t> compiled_ubrk_rules;
 	std::vector<uint8_t> compiled_char_ubrk_rules;
 	std::vector<uint8_t> compiled_word_ubrk_rules;
 	bool map_font_is_black = false;
 
-	dcon::locale_id current_locale;
-	void resolve_locale(dcon::data_container data, simple_fs::file_system fs, dcon::locale_id l);
+	// dcon::locale_id current_locale;
+	void resolve_locale(dcon::data_container& data, simple_fs::file_system& fs, dcon::locale_id l);
 
 	void reset_fonts();
 	font& get_font(font_id f);
 	void load_font(font& fnt, char const* file_data, uint32_t file_size);
-	float line_height(font_id f, float ui_scale);
-	float text_extent(stored_glyphs const& txt, uint32_t starting_offset, uint32_t count, font_id font_id, float ui_scale);
+	float line_height(
+		font_id f,
+		uint16_t size,
+		float ui_scale
+	);
+	float text_extent(
+		stored_glyphs const& txt,
+		uint32_t starting_offset,
+		uint32_t count,
+		font_id f,
+		int16_t font_size,
+		float ui_scale
+	);
+
 };
 
 font_id make_font_id(bool as_header, float target_line_size);

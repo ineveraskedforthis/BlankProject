@@ -9,14 +9,11 @@
 #include "unordered_dense.h"
 #include "container_types.hpp"
 #include "container_types_ui.hpp"
+#include "project_description.hpp"
 
 struct color3f;
 
 namespace template_project {
-
-enum class aui_text_alignment : uint8_t {
-	left, right, center
-};
 
 struct background_definition {
 	std::string file_name;

@@ -777,12 +777,17 @@ struct text_chunk {
 struct layout_parameters {
 	int16_t left = 0;
 	int16_t top = 0;
+
 	int16_t right = 0;
 	int16_t bottom = 0;
+
+	uint16_t font_size = 0;
 	uint16_t font_id = 0;
+
 	int16_t leading = 0;
 	alignment align = alignment::left;
 	text_color color = text_color::white;
+
 	bool suppress_hyperlinks = false;
 	bool single_line = false;
 };
@@ -868,9 +873,8 @@ struct single_line_layout : public layout_base {
 		internal_close_box(box);
 	}
 
-	void add_text(sys::state& state, std::string_view v);
-	void add_text(sys::state& state, std::u16string_view v);
-	void add_text(sys::state& state, dcon::text_key source_text);
+	void add_text(std::string_view v);
+	void add_text(std::u16string_view v);
 };
 
 text_color char_to_color(char in);
@@ -883,16 +887,31 @@ columnar_layout create_columnar_layout(sys::state& state, layout& dest, layout_p
 void close_layout_box(columnar_layout& dest, layout_box& box);
 void close_layout_box(single_line_layout& dest, layout_box& box);
 void add_unparsed_text_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, std::string_view sv, substitution_map const& mp = substitution_map{});
-void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, dcon::text_key source_text, substitution_map const& mp = substitution_map{});
-void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, std::string_view, text_color color = text_color::white, substitution source = std::monostate{});
-void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, substitution val, text_color color = text_color::white);
-void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, std::string const& val, text_color color = text_color::white);
+// void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, dcon::text_key source_text, substitution_map const& mp = substitution_map{});
+// void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, std::string_view, text_color color = text_color::white, substitution source = std::monostate{});
+// void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, substitution val, text_color color = text_color::white);
+// void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, std::string const& val, text_color color = text_color::white);
 void add_space_to_layout_box(sys::state& state, layout_base& dest, layout_box& box);
 void add_line_break_to_layout_box(sys::state& state, layout_base& dest, layout_box& box);
 
 void add_line_break_to_layout(sys::state& state, columnar_layout& dest);
 void add_line_break_to_layout(sys::state& state, endless_layout& dest);
-void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, embedded_icon ico);
+// void add_to_layout_box(sys::state& state, layout_base& dest, layout_box& box, embedded_icon ico);
+
+void add_to_layout_box(
+	dcon::data_container& data,
+	font_manager& font_collection,
+	layout_base& dest,
+	layout_box& box,
+	std::u16string_view text,
+	text_color color,
+	substitution source,
+	dcon::dcon_vv_fat_id<uint32_t> features,
+	hb_script_t hb_script,
+	hb_language_t language,
+	bool rtl,
+	float ui_scale
+);
 
 void close_layout_box(layout_base& dest, layout_box& box);
 

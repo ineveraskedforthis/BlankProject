@@ -92,7 +92,7 @@ uint32_t font_index(std::string_view txt) {
 		return 1;
 }
 
-
+/*
 int32_t size_from_font_id(uint16_t id) {
 	auto index = uint32_t(((id >> 7) & 0x01) + 1);
 	if(index == 2)
@@ -100,6 +100,7 @@ int32_t size_from_font_id(uint16_t id) {
 	else
 		return (int32_t(id & 0x3F) * 5) / 6;
 }
+*/
 
 bool is_black_from_font_id(uint16_t id) {
 	return ((id >> 6) & 0x01) != 0;
@@ -112,23 +113,29 @@ font_selection font_index_from_font_id(uint16_t id) {
 		return font_selection::header_font;
 }
 
-float font_manager::text_extent(stored_glyphs const& txt, uint32_t starting_offset, uint32_t count, font_id f, float ui_scale) {
+float font_manager::text_extent(
+	stored_glyphs const& txt,
+	uint32_t starting_offset,
+	uint32_t count,
+	font_id f,
+	int16_t font_size,
+	float ui_scale
+) {
 	auto& font = get_font(f);
-	auto size = text::size_from_font_id(f);
 	return float(
 		font
-		.retrieve_instance(*this, size, ui_scale)
+		.retrieve_instance(*this, font_size, ui_scale)
 		.text_extent(txt, starting_offset, count, ui_scale)
 	);
 }
 
-float font_manager::line_height(font_id f, float ui_scale) {
+float font_manager::line_height(font_id f, uint16_t size, float ui_scale) {
 	return float(
 		get_font(
 			f
 		).retrieve_instance(
 			*this,
-			text::size_from_font_id(f),
+			size,
 			ui_scale
 		).line_height(ui_scale)
 	);
@@ -177,7 +184,7 @@ void font_manager::reset_fonts() {
 	for(auto& f : font_array)
 		f.reset_instances();
 }
-void font_manager::resolve_locale(dcon::data_container data, simple_fs::file_system fs, dcon::locale_id l) {
+void font_manager::resolve_locale(dcon::data_container& data, simple_fs::file_system& fs, dcon::locale_id l) {
 	uint32_t end_language = 0;
 	auto locale_name = data.locale_get_locale_name(l);
 	std::string_view localename_sv((char const*)locale_name.begin(), locale_name.size());
@@ -465,7 +472,7 @@ stored_glyphs::stored_glyphs(
 	layout_details* d,
 	uint32_t details_offset,
 	font_id f,
-	dcon::dcon_vv_const_fat_id<uint32_t> features,
+	dcon::dcon_vv_fat_id<uint32_t> features,
 	hb_script_t hb_script,
 	hb_language_t language,
 	bool rtl,
@@ -495,7 +502,7 @@ stored_glyphs::stored_glyphs(
 	std::span<uint16_t> source,
 	no_bidi,
 	font_id f,
-	dcon::dcon_vv_const_fat_id<uint32_t> features,
+	dcon::dcon_vv_fat_id<uint32_t> features,
 	hb_script_t hb_script,
 	hb_language_t language,
 	bool rtl,
@@ -529,7 +536,7 @@ void font_at_size::remake_cache(
 	layout_details* d,
 	uint32_t details_offset,
 	font_id f,
-	dcon::dcon_vv_const_fat_id<uint32_t> features,
+	dcon::dcon_vv_fat_id<uint32_t> features,
 	hb_script_t hb_script,
 	hb_language_t language,
 	bool rtl,
@@ -810,7 +817,7 @@ void font_at_size::remake_bidiless_cache(
 	stored_glyphs& txt,
 	std::span<uint16_t> source,
 	font_id f,
-	dcon::dcon_vv_const_fat_id<uint32_t> features,
+	dcon::dcon_vv_fat_id<uint32_t> features,
 	hb_script_t hb_script,
 	hb_language_t language,
 	bool rtl,

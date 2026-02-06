@@ -1,10 +1,6 @@
 #include "system_state.hpp"
-#include "game_scene.hpp"
 
 static sys::state game_state;
-
-
-
 
 int main(int argc, char* argv[]) {
 	add_root(game_state.common_fs, NATIVE("."));
@@ -12,7 +8,7 @@ int main(int argc, char* argv[]) {
 
 	//No args provided.
 	if(argc <= 1) {
-	
+
 	} else {
 
 	}

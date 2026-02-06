@@ -1,15 +1,8 @@
 #pragma once
 
-#include <vector>
-#include <array>
-#include <chrono>
 #include <any>
-#include "constants_dcon.hpp"
-#include "constants.hpp"
-#include "dcon_generated_ids.hpp"
 #include "unordered_dense.h"
 #include "container_types.hpp"
-#include "simple_fs.hpp"
 #include "constants_ui.hpp"
 #include "container_types_ui.hpp"
 
@@ -37,9 +30,9 @@ struct element_data {
 
 	xy_pair position; // 4bytes
 	xy_pair size; // 8bytes
-	
+
 	uint8_t flags = 0;
-	uint8_t ex_flags = 0; 
+	uint8_t ex_flags = 0;
 
 	rotation get_rotation() const {
 		return rotation(flags & rotation_mask);
@@ -52,17 +45,6 @@ struct element_data {
 	}
 };
 
-class definitions {
-public:
-	static constexpr dcon::texture_id small_tiles_dialog = dcon::texture_id(0);
-	static constexpr dcon::texture_id tiles_dialog = dcon::texture_id(1);
-	static constexpr dcon::texture_id transparency = dcon::texture_id(2);
-
-	tagged_vector<dcon::text_key, dcon::texture_id> textures;
-	tagged_vector<element_data, dcon::gui_def_id> gui;
-};
-
-
 class element_base;
 
 xy_pair child_relative_location(sys::state& state, element_base const& parent, element_base const& child);
@@ -70,13 +52,6 @@ xy_pair get_absolute_location(sys::state& state, element_base const& node);
 
 xy_pair child_relative_non_mirror_location(sys::state& state, element_base const& parent, element_base const& child);
 xy_pair get_absolute_non_mirror_location(sys::state& state, element_base const& node);
-
-using ui_hook_fn = std::unique_ptr<element_base> (*)(sys::state&, dcon::gui_def_id);
-
-struct element_target {
-	ui_hook_fn generator = nullptr;
-	dcon::gui_def_id definition;
-};
 
 class tool_tip;
 
@@ -94,13 +69,7 @@ struct hash_text_key {
 	}
 };
 
-template<typename T>
-constexpr ui_hook_fn hook() {
-	return +[](sys::state&, dcon::gui_def_id) { return std::make_unique<T>(); };
-}
-
 std::unique_ptr<element_base> make_element(sys::state& state, std::string_view name);
-std::unique_ptr<element_base> make_element_immediate(sys::state& state, dcon::gui_def_id id); // bypasses global map
 void place_in_drag_and_drop(sys::state& state, element_base& elm, std::any const& data, drag_and_drop_data type);
 
 int32_t ui_width(sys::state const& state);

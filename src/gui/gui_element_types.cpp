@@ -219,43 +219,6 @@ uint32_t internal_get_disabled_color(float r, float g, float b) {
 	return sys::pack_color(amount, amount, amount);
 }
 
-void render_text_chunk(
-	sys::state& state,
-	text::text_chunk t,
-	float x,
-	float baseline_y,
-	uint16_t font_id,
-	ogl::color3f text_color,
-	ogl::color_modification cmod
-) {
-	auto font_size = float(text::size_from_font_id(font_id));
-	auto font_index = text::font_index_from_font_id(font_id);
-	auto& current_font = state.font_collection.get_font(state, font_index);
-
-	if(std::holds_alternative<text::embedded_icon>(t.source)) {
-		ogl::render_text_icon(
-			state,
-			std::get<text::embedded_icon>(t.source),
-			x,
-			baseline_y,
-			font_size,
-			current_font,
-			cmod
-		);
-	} else {
-		ogl::render_text(
-			state,
-			t.unicodechars,
-			cmod,
-			x,
-			baseline_y,
-			text_color,
-			font_id
-		);
-	}
-}
-
-
 void edit_box_element_base::internal_move_cursor_to_point(sys::state& state, int32_t x, int32_t y, bool extend_selection) {
 	int32_t hmargin = 0;
 	int32_t vmargin = 0;

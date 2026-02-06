@@ -1,9 +1,8 @@
 #include "locale.hpp"
-#include "hb.h"
-#include "parsers.hpp"
+#include "data.hpp"
 
 namespace locale {
-locale_parser parse_locale_parser(parsers::token_generator& gen, parsers::error_handler& err, sys::state& context) {
+locale_parser parse_locale_parser(parsers::token_generator& gen, parsers::error_handler& err) {
 	locale_parser cobj;
 	for(parsers::token_and_type cur = gen.get(); cur.type != parsers::token_type::unknown && cur.type != parsers::token_type::close_brace; cur = gen.get()) {
 		if(cur.type == parsers::token_type::open_brace) {
@@ -84,7 +83,7 @@ locale_parser parse_locale_parser(parsers::token_generator& gen, parsers::error_
 					case 0x62:
 						// body_feature
 						if((true && (*(uint64_t const*)(&cur.content[1]) | uint64_t(0x2020202020202020)) == uint64_t(0x746165667F79646F) && (*(uint16_t const*)(&cur.content[9]) | 0x2020) == 0x7275 && (cur.content[11] | 0x20) == 0x65)) {
-							cobj.body_feature(assoc_type, parse_text(rh_token.content, rh_token.line, err), err, cur.line, context);
+							cobj.body_feature(assoc_type, parse_text(rh_token.content, rh_token.line, err), err, cur.line);
 						} else {
 							err.unhandled_association_key(cur);
 						}
@@ -105,7 +104,7 @@ locale_parser parse_locale_parser(parsers::token_generator& gen, parsers::error_
 				case 14:
 					// header_feature
 					if((true && (*(uint64_t const*)(&cur.content[0]) | uint64_t(0x2020202020202020)) == uint64_t(0x667F726564616568) && (*(uint32_t const*)(&cur.content[8]) | uint32_t(0x20202020)) == uint32_t(0x75746165) && (*(uint16_t const*)(&cur.content[12]) | 0x2020) == 0x6572)) {
-						cobj.header_feature(assoc_type, parse_text(rh_token.content, rh_token.line, err), err, cur.line, context);
+						cobj.header_feature(assoc_type, parse_text(rh_token.content, rh_token.line, err), err, cur.line);
 					} else {
 						err.unhandled_association_key(cur);
 					}
@@ -119,19 +118,19 @@ locale_parser parse_locale_parser(parsers::token_generator& gen, parsers::error_
 			err.unhandled_free_value(cur);
 		}
 	}
-	cobj.finish(context);
+	cobj.finish();
 	return cobj;
 }
 
-void add_locale(std::string_view locale_name, char const* data_start, char const* data_end) {
+void add_locale(dcon::data_container& data, std::string_view locale_name, char const* data_start, char const* data_end) {
 	parsers::token_generator gen(data_start, data_end);
 	parsers::error_handler err("");
 
-	locale_parser new_locale = parse_locale_parser(gen, err, state);
+	locale_parser new_locale = parse_locale_parser(gen, err);
 	hb_language_t lang = nullptr;
 
-	auto new_locale_id = state.world.create_locale();
-	auto new_locale_obj = fatten(state.world, new_locale_id);
+	auto new_locale_id = data.create_locale();
+	auto new_locale_obj = fatten(data, new_locale_id);
 	new_locale_obj.set_hb_script(hb_script_from_string(new_locale.script.c_str(), int(new_locale.script.length())));
 	new_locale_obj.set_native_rtl(new_locale.rtl);
 

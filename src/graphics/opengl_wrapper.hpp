@@ -15,6 +15,7 @@
 #include "texture.hpp"
 #include "fonts.hpp"
 #include "constants_ui.hpp"
+#include "glm/glm.hpp"
 
 namespace text {
 class font;
@@ -241,7 +242,7 @@ bool display_tag_is_valid(ogl::data& state, char tag[3]);
 GLint compile_shader(std::string_view source, GLenum type);
 GLuint create_program(std::string_view vertex_shader, std::string_view fragment_shader);
 GLuint create_program(std::string_view vertex_shader, std::string_view tes_control_shader, std::string_view tes_eval_shader, std::string_view fragment_shader, bool debug_geom_shader);
-void load_shaders(ogl::data& state);
+void load_shaders(ogl::data& state, simple_fs::file_system& fs);
 void load_global_squares(ogl::data& state);
 
 class bezier_path {
@@ -295,7 +296,7 @@ public:
 		other.dat_texture = 0;
 		dat_buffer = other.dat_buffer;
 		other.dat_buffer = 0;
-		return *this
+		return *this;
 	}
 	~bezier_path();
 	void update_vbo();
@@ -394,9 +395,29 @@ void render_subsprite(ogl::data const& state, color_modification enabled, int fr
 void render_rect_slice(ogl::data const& state, float x, float y, float width, float height, GLuint texture_handle, float start_slice, float end_slice);
 void render_tinted_rect(ogl::data const& state, float x, float y, float width, float height, float r, float g, float b, ui::rotation rot, bool flipped, bool rtl);
 void render_tinted_subsprite(ogl::data const& state, int frame, int total_frames, float x, float y, float width, float height, float r, float g, float b, GLuint texture_handle, ui::rotation rot, bool flipped, bool rtl);
-void render_new_text(ogl::data const& state, text::stored_glyphs const& txt, color_modification enabled, float x, float y, float size, color3f const& c, text::font& f);
-void render_text(ogl::data& state, text::stored_glyphs const& txt, color_modification enabled, float x, float y, color3f const& c, uint16_t font_id);
-void render_text_icon(ogl::data& state, text::embedded_icon ico, float x, float baseline_y, float font_size, text::font& f, ogl::color_modification = ogl::color_modification::none);
+void render_new_text(
+	data& state,
+	text::font_manager& font_collection,
+	text::font& f,
+	text::stored_glyphs const& txt,
+	color_modification enabled,
+	float x,
+	float y,
+	float size,
+	color3f const& c,
+	float ui_scale
+);
+void render_text_icon(
+	ogl::data& state,
+	text::font_manager& font_collection,
+	text::embedded_icon ico,
+	float x,
+	float baseline_y,
+	float font_size,
+	text::font& f,
+	ogl::color_modification cmod,
+	float ui_scale
+);
 
 void deinitialize_framebuffer_for_province_indices(ogl::data& state);
 void initialize_framebuffer_for_province_indices(ogl::data& state, int32_t size_x, int32_t size_y);
@@ -412,16 +433,6 @@ void set_gltex_parameters(GLuint texture_handle, GLuint texture_type, GLuint fil
 void set_gltex_parameters(GLuint texture_handle, GLuint texture_type, GLuint filter, GLuint wrap_a, GLuint wrap_b);
 GLuint load_texture_array_from_file(simple_fs::file& file, int32_t tiles_x, int32_t tiles_y);
 void load_special_icons(ogl::data& state, simple_fs::file_system& fs);
-
-struct scissor_box {
-	const int32_t x;
-	const int32_t y;
-	const int32_t w;
-	const int32_t h;
-
-	scissor_box(ogl::data const& state, int32_t x, int32_t y, int32_t w, int32_t h);
-	~scissor_box();
-};
 
 void render_subrect(ogl::data const& state, float target_x, float target_y, float target_width, float target_height, float source_x, float source_y, float source_width, float source_height, GLuint texture_handle);
 

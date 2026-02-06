@@ -1,8 +1,9 @@
 #include "opengl_wrapper.hpp"
 #include "simple_fs.hpp"
 #include "fonts.hpp"
-#include "gui_element_base.hpp"
 
+#include "constants.hpp"
+#include "window.hpp"
 
 #undef STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -997,9 +998,8 @@ void render_rect_slice(ogl::data& state, float x, float y, float width, float he
 
 
 void render_text_icon(
-	text::font_manager& font_collection,
 	ogl::data& state,
-	GLuint square_buffer,
+	text::font_manager& font_collection,
 	text::embedded_icon ico,
 	float x,
 	float baseline_y,
@@ -1008,7 +1008,6 @@ void render_text_icon(
 	ogl::color_modification cmod,
 	float ui_scale
 ) {
-
 	float scale = 1.f;
 	float icon_baseline = baseline_y + (
 		f	.retrieve_instance(font_collection, int32_t(font_size), ui_scale)
@@ -1130,7 +1129,6 @@ void render_new_text(
 	text::font_manager& font_collection,
 	text::font& f,
 	text::stored_glyphs const& txt,
-	GLuint square_buffer,
 	color_modification enabled,
 	float x,
 	float y,
@@ -1142,13 +1140,13 @@ void render_new_text(
 	glUniform1f(state.ui_shader_border_size_uniform, 0.08f * 16.0f / size);
 	text_render(
 		font_collection.ft_library,
-		square_buffer,
+		state.global_square_buffer,
 		ui_scale,
-		shader.subroutine,
+		state.ui_shader_subroutines_index_uniform,
 		map_color_modification_to_index(enabled),
 		ogl::parameters::subsprite_b,
-		shader.d_rect,
-		shader.subrect,
+		state.ui_shader_d_rect_uniform,
+		state.ui_shader_subrect_uniform,
 		txt.glyph_info,
 		static_cast<unsigned int>(txt.glyph_info.size()),
 		x,
@@ -1343,71 +1341,6 @@ GLuint load_texture_array_from_file(simple_fs::file& file, int32_t tiles_x, int3
 	return texture_handle;
 }
 
-void render_capture::ready(ogl::data& state) {
-	if(state.x_size > max_x || state.y_size > max_y) {
-		max_x = std::max(max_x, state.x_size);
-		max_y = std::max(max_y, state.y_size);
-
-		if(texture_handle)
-			glDeleteTextures(1, &texture_handle);
-		if(framebuffer)
-			glDeleteFramebuffers(1, &framebuffer);
-
-		glGenFramebuffers(1, &framebuffer);
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-		glGenTextures(1, &texture_handle);
-		glBindTexture(GL_TEXTURE_2D, texture_handle);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, max_x, max_y, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture_handle, 0);
-
-		GLenum DrawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
-		glDrawBuffers(1, DrawBuffers);
-
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glUseProgram(state.ui_shader_program);
-		glUniform1i(state.ui_shader_texture_sampler_uniform, 0);
-		glUniform1i(state.ui_shader_secondary_texture_sampler_uniform, 1);
-		glUniform1f(state.ui_shader_screen_width_uniform, float(max_x) / state.user_settings.ui_scale);
-		glUniform1f(state.ui_shader_screen_height_uniform, float(max_y) / state.user_settings.ui_scale);
-		glUniform1f(state.ui_shader_gamma_uniform, 1.0f);
-		glViewport(0, 0, max_x, max_y);
-		glDepthRange(-1.0f, 1.0f);
-	} else {
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glUseProgram(state.ui_shader_program);
-		glUniform1i(state.ui_shader_texture_sampler_uniform, 0);
-		glUniform1i(state.ui_shader_secondary_texture_sampler_uniform, 1);
-		glUniform1f(state.ui_shader_screen_width_uniform, float(max_x) / state.user_settings.ui_scale);
-		glUniform1f(state.ui_shader_screen_height_uniform, float(max_y) / state.user_settings.ui_scale);
-		glUniform1f(state.ui_shader_gamma_uniform, 1.0f);
-		glViewport(0, 0, max_x, max_y);
-		glDepthRange(-1.0f, 1.0f);
-	}
-}
-void render_capture::finish(ogl::data& state) {
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-GLuint render_capture::get() {
-	return texture_handle;
-}
-render_capture::~render_capture() {
-	if(texture_handle)
-		glDeleteTextures(1, &texture_handle);
-	if(framebuffer)
-		glDeleteFramebuffers(1, &framebuffer);
-}
 void render_subrect(ogl::data const& state, float target_x, float target_y, float target_width, float target_height, float source_x, float source_y, float source_width, float source_height, GLuint texture_handle) {
 	bind_vertices_by_rotation(state, ui::rotation::upright, false, false);
 	GLuint subroutines[2] = { parameters::enabled, parameters::subsprite_c };
@@ -1419,167 +1352,6 @@ void render_subrect(ogl::data const& state, float target_x, float target_y, floa
 	glUniform4f(state.ui_shader_d_rect_uniform, target_x, target_y, target_width, target_height);
 	glUniform4f(state.ui_shader_subrect_uniform, source_x /* x offset */, source_width /* x width */, source_y /* y offset */, source_height /* y height */);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-}
-
-void animation::start_animation(ogl::data& state, int32_t x, int32_t y, int32_t w, int32_t h, type t, int32_t runtime) {
-	start_state.ready(state);
-	state.current_scene.get_root(state)->impl_render(state, 0, 0);
-	start_state.finish(state);
-	ani_type = t;
-	x_pos = x;
-	y_pos = y;
-	x_size = w;
-	y_size = h;
-	ms_run_time = runtime;
-	start_time = std::chrono::steady_clock::now();
-	running = true;
-}
-void animation::post_update_frame(ogl::data& state) {
-	if(running) {
-		bool needs_new_state = (ani_type == type::page_flip_left_rev || ani_type == type::page_flip_right_rev || ani_type == type::page_flip_up_rev || ani_type == type::page_flip_mid || ani_type == type::page_flip_mid_rev);
-		if(needs_new_state) {
-			end_state.ready(state);
-			state.current_scene.get_root(state)->impl_render(state, 0, 0);
-			end_state.finish(state);
-		}
-	}
-}
-void animation::render(ogl::data& state) {
-	if(!running)
-		return;
-	auto entry_time = std::chrono::steady_clock::now();
-	auto ms_count = std::chrono::duration_cast<std::chrono::milliseconds>(entry_time - start_time).count();
-	if(ms_count > ms_run_time) {
-		running = false;
-	} else {
-		float percent = float(ms_count) / float(ms_run_time);
-		switch(ani_type) {
-		case type::page_flip_left:
-		{
-			float extent = cos((percent) * 3.14159f / 2.0f);
-			render_subrect(state, float(x_pos), float(y_pos), float(x_size * extent), float(y_size),
-				float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-				start_state.get());
-		}
-			break;
-		case type::page_flip_right:
-		{
-			float extent = cos((percent) * 3.14159f / 2.0f);
-			render_subrect(state, float(x_pos + (x_size * (1.0f - extent))), float(y_pos), float(x_size * extent), float(y_size),
-				float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-				start_state.get());
-		}
-			break;
-		case type::page_flip_up:
-		{
-			float extent = cos((percent) * 3.14159f / 2.0f);
-			render_subrect(state, float(x_pos), float(y_pos), float(x_size), float(y_size * extent),
-				float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-				start_state.get());
-		}
-			break;
-		case type::page_flip_mid:
-		{
-			if(percent < 0.5f) {
-				float extent = cos((percent * 2.0f) * 3.14159f / 2.0f);
-				render_subrect(state, float(x_size / 2 + x_pos), float(y_pos), float(x_size * extent / 2.0f), float(y_size),
-					float(x_size / 2 + x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-					start_state.get());
-				render_subrect(state, float(x_pos), float(y_pos), float(x_size / 2.0f), float(y_size),
-					float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-					start_state.get());
-			} else {
-				float extent = cos((percent - 0.5f) * 2.0f * 3.14159f / 2.0f);
-				render_subrect(state, float(x_pos), float(y_pos), float(x_size / 2.0f), float(y_size),
-					float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-					start_state.get());
-				render_subrect(state, float(extent * x_size / 2.0f + x_pos), float(y_pos), float(x_size / 2.0f - extent * x_size / 2.0f), float(y_size),
-					float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-					end_state.get());
-
-			}
-		} break;
-		case type::page_flip_mid_rev:
-		{
-			if(percent < 0.5f) {
-				float extent = sin((percent * 2.0f) * 3.14159f / 2.0f);
-				render_subrect(state, float(x_pos + x_size * extent / 2.0f), float(y_pos), float(x_size * (1.0f - extent) / 2.0f), float(y_size),
-					float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-					start_state.get());
-				render_subrect(state, float(x_pos + x_size / 2.0f), float(y_pos), float(x_size / 2.0f), float(y_size),
-					float(x_pos + x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-					start_state.get());
-			} else {
-				float extent = sin((percent - 0.5f) * 2.0f * 3.14159f / 2.0f);
-				render_subrect(state, float(x_pos + x_size / 2.0f), float(y_pos), float(x_size / 2.0f), float(y_size),
-					float(x_pos + x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-					start_state.get());
-				render_subrect(state, float(x_pos + x_size / 2.0f), float(y_pos), float(extent * x_size / 2.0f), float(y_size),
-					float(x_pos + x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size / 2.0f) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-					end_state.get());
-
-			}
-		} break;
-		case type::page_flip_left_rev:
-		{
-			float extent = cos((1.0f - percent) * 3.14159f / 2.0f);
-			render_subrect(state, float(x_pos), float(y_pos), float(x_size), float(y_size),
-				float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-				start_state.get());
-			render_subrect(state, float(x_pos), float(y_pos), float(x_size * extent), float(y_size),
-				float(x_pos) * state.user_settings.ui_scale / float(end_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(end_state.max_y), float(x_size) * state.user_settings.ui_scale / float(end_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(end_state.max_y),
-				end_state.get());
-		}
-			break;
-		case type::page_flip_right_rev:
-		{
-			float extent = cos((1.0f - percent) * 3.14159f / 2.0f);
-			render_subrect(state, float(x_pos), float(y_pos), float(x_size), float(y_size),
-				float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-				start_state.get());
-			render_subrect(state, float(x_pos + (x_size * (1.0f - extent))), float(y_pos), float(x_size * extent), float(y_size),
-				float(x_pos) * state.user_settings.ui_scale / float(end_state.max_x), float(end_state.max_y - y_pos) * state.user_settings.ui_scale / float(end_state.max_y), float(x_size) * state.user_settings.ui_scale / float(end_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(end_state.max_y),
-				end_state.get());
-		}
-			break;
-		case type::page_flip_up_rev:
-		{
-			float extent = cos((1.0f - percent) * 3.14159f / 2.0f);
-			render_subrect(state, float(x_pos), float(y_pos), float(x_size), float(y_size),
-				float(x_pos) * state.user_settings.ui_scale / float(start_state.max_x), float(start_state.max_y - y_pos) * state.user_settings.ui_scale / float(start_state.max_y), float(x_size) * state.user_settings.ui_scale / float(start_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(start_state.max_y),
-				start_state.get());
-			render_subrect(state, float(x_pos), float(y_pos), float(x_size), float(y_size * extent),
-				float(x_pos) * state.user_settings.ui_scale / float(end_state.max_x), float(end_state.max_y - y_pos) * state.user_settings.ui_scale / float(end_state.max_y), float(x_size) * state.user_settings.ui_scale / float(end_state.max_x), float(-y_size) * state.user_settings.ui_scale / float(end_state.max_y),
-				end_state.get());
-		}
-			break;
-		}
-	}
-}
-
-scissor_box::scissor_box(ogl::data const& state, int32_t x, int32_t y, int32_t w, int32_t h) : x(x), y(y), w(w), h(h) {
-	glEnable(GL_SCISSOR_TEST);
-	glScissor(int32_t(x * state.user_settings.ui_scale), int32_t((state.ui_state.root->base_data.size.y - h - y) * state.user_settings.ui_scale), int32_t(w * state.user_settings.ui_scale), int32_t(h * state.user_settings.ui_scale));
-}
-scissor_box::~scissor_box() {
-	glDisable(GL_SCISSOR_TEST);
-}
-
-void captured_element::capture_element(ogl::data& state, ui::element_base& elm) {
-	rendered_state.ready(state);
-	state.current_scene.get_root(state)->impl_render(state, 0, 0);
-	rendered_state.finish(state);
-
-	auto abs_pos = ui::get_absolute_location(state, elm);
-	cap_x_pos = abs_pos.x;
-	cap_y_pos = abs_pos.y;
-	cap_width = elm.base_data.size.x;
-	cap_height = elm.base_data.size.y;
-}
-void captured_element::render(ogl::data& state, int32_t x, int32_t y) {
-	render_subrect(state, float(x), float(y), float(cap_width), float(cap_height),
-				float(cap_x_pos) * state.user_settings.ui_scale / float(rendered_state.max_x), float(rendered_state.max_y - cap_y_pos) * state.user_settings.ui_scale / float(rendered_state.max_y), float(cap_width) * state.user_settings.ui_scale / float(rendered_state.max_x), float(-cap_height) * state.user_settings.ui_scale / float(rendered_state.max_y),
-				rendered_state.get());
 }
 
 bezier_path::~bezier_path() {

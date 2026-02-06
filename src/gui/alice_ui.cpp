@@ -1,35 +1,15 @@
-#include <numbers>
-#include <cmath>
-
-#include "system_state.hpp"
-#include "gui_element_base.hpp"
-#include "gui_element_types.hpp"
-#include "gui_deserialize.hpp"
 #include "alice_ui.hpp"
-
 namespace alice_ui {
-
-bool state_is_rtl(sys::state& state) {
-	return state.world.locale_get_native_rtl(state.font_collection.get_current_locale());
-}
-
-ogl::animation::type to_ogl_type(animation_type type, bool forwards) {
-	switch(type) {
-	case animation_type::page_left:
-		return forwards ? ogl::animation::type::page_flip_left : ogl::animation::type::page_flip_left_rev;
-	case animation_type::page_right:
-		return forwards ? ogl::animation::type::page_flip_right : ogl::animation::type::page_flip_right_rev;
-	case animation_type::page_up:
-		return forwards ? ogl::animation::type::page_flip_up : ogl::animation::type::page_flip_up_rev;
-	case animation_type::none:
-		return ogl::animation::type::page_flip_left;
-	case animation_type::page_middle:
-		return forwards ? ogl::animation::type::page_flip_mid : ogl::animation::type::page_flip_mid_rev;
-	default:
-		return ogl::animation::type::page_flip_left;
+text::alignment convert_align(aui_text_alignment a) {
+	switch(a) {
+	case aui_text_alignment::center: return text::alignment::center;
+	case aui_text_alignment::left: return text::alignment::left;
+	case aui_text_alignment::right: return text::alignment::right;
 	}
+	return text::alignment::left;
 }
 
+/*
 void layout_level::change_page(sys::state& state, layout_window_element& container, int32_t new_page) {
 	if(page_animation != animation_type::none) {
 		bool lflip = new_page < current_page && current_page > 0;
@@ -209,14 +189,6 @@ ui::message_result auto_close_button::on_key_down(sys::state& state, sys::virtua
 	return ui::message_result::unseen;
 }
 
-text::alignment convert_align(template_project::aui_text_alignment a) {
-	switch(a) {
-	case template_project::aui_text_alignment::center: return text::alignment::center;
-	case template_project::aui_text_alignment::left: return text::alignment::left;
-	case template_project::aui_text_alignment::right: return text::alignment::right;
-	}
-	return text::alignment::left;
-}
 
 void template_label::set_text(sys::state& state, std::string_view new_text) {
 	if(new_text != cached_text) {
@@ -236,7 +208,7 @@ void template_label::set_text(sys::state& state, std::string_view new_text) {
 			text::single_line_layout sl{ internal_layout,
 				text::layout_parameters{
 					0, 0, static_cast<int16_t>(base_data.size.x - region.h_text_margins * par->grid_size * 2), static_cast<int16_t>(base_data.size.y - region.v_text_margins * 2),
-					text::make_font_id(state, region.font_choice == 1, region.font_scale * par->grid_size * 2), 0,
+					text::make_font_id(region.font_choice == 1, region.font_scale * par->grid_size * 2), 0,
 					convert_align(region.h_text_alignment), text::text_color::black, true, true
 				},
 				state.world.locale_get_native_rtl(state.font_collection.get_current_locale()) ? text::layout_base::rtl_status::rtl : text::layout_base::rtl_status::ltr };
@@ -2513,7 +2485,7 @@ void layout_window_element::remake_layout_internal(layout_level& lvl, sys::state
 	} break;
 	}
 }
-
+*/
 
 
 }
