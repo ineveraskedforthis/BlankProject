@@ -772,8 +772,12 @@ struct text_chunk {
 	int16_t y = 0;
 	int16_t width = 0;
 	int16_t height = 0;
+
 	text_color color = text_color::black;
+	font_id font;
+	uint16_t font_size;
 };
+
 struct layout_parameters {
 	int16_t left = 0;
 	int16_t top = 0;

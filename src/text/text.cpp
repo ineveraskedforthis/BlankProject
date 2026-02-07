@@ -173,7 +173,9 @@ void add_to_layout_box(
 				int16_t(box.y_position),
 				extent,
 				int16_t(text_height),
-				tmp_color
+				tmp_color,
+				font_id,
+				font_size
 			}
 		);
 		if(dest.edit_details) {
