@@ -167,7 +167,7 @@ uint32_t svg::get_render(
 	float r, float g, float b
 ) {
 	uint64_t colorid = uint64_t(r * 255.0f) | (uint64_t(g * 255.0f) << uint64_t(8)) | (uint64_t(b * 255.0f) << uint64_t(16));
-	uint64_t idx = uint64_t(uint32_t(size_x * grid_size)) | (uint64_t(uint32_t(size_y * grid_size)) << uint64_t(20)) | (colorid << 40);
+	uint64_t idx = uint64_t(uint32_t(size_x * grid_size * scale)) | (uint64_t(uint32_t(size_y * grid_size * scale)) << uint64_t(20)) | (colorid << 40);
 
 	if(auto it = renders.find(idx); it != renders.end()) {
 		return it->second.texture_handle;
@@ -266,7 +266,7 @@ uint32_t svg::make_new_render(
 	auto h = new_inst.texture_handle;
 
 	uint64_t colorid = uint64_t(r * 255.0f) | (uint64_t(g * 255.0f) << uint64_t(8)) | (uint64_t(b * 255.0f) << uint64_t(16));
-	uint64_t idx = uint64_t(uint32_t(size_x * grid_size)) | (uint64_t(uint32_t(size_y * grid_size)) << uint64_t(20)) | (colorid << 40);
+	uint64_t idx = uint64_t(uint32_t(size_x * grid_size * scale)) | (uint64_t(uint32_t(size_y * grid_size * scale)) << uint64_t(20)) | (colorid << 40);
 	renders[idx] = std::move(new_inst);
 
 	return h;

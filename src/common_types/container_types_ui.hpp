@@ -33,9 +33,4 @@ struct urect {
 	xy_pair size;
 };
 
-struct mouse_probe {
-	element_base* under_mouse;
-	xy_pair relative_location;
-};
-
 }
