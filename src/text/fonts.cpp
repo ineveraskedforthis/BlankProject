@@ -8,6 +8,7 @@
 #include "constants.hpp"
 #include "data.hpp"
 #include <charconv>
+#define GLEW_STATIC
 #include "GL/glew.h"
 
 #ifdef _WIN32
