@@ -1,5 +1,5 @@
 #include "window.hpp"
-#include "map.hpp"
+//#include "map.hpp"
 #include "user_interactions.hpp"
 
 #include <GLFW/glfw3.h>

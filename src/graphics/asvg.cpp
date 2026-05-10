@@ -6,6 +6,7 @@
 #endif
 #include "GL/glew.h"
 #include "simple_fs.hpp"
+#include <cmath>
 
 void assert_no_errors();
 
