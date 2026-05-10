@@ -4,6 +4,7 @@
 #include "container_types.hpp"
 #include "native_types.hpp"
 #include "simple_fs.hpp"
+#include <cmath>
 
 #ifndef GLEW_STATIC
 #define GLEW_STATIC

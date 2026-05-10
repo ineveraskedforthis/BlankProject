@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <string_view>
 #include <string>
+#include <cmath>
 
 namespace sys {
 struct state; // this is here simply to declare the state struct in a very general location

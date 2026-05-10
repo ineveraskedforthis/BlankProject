@@ -1002,7 +1002,7 @@ font_texture_result make_font_texture(simple_fs::file& f) {
 	return font_texture_result{ ftexid, uint32_t(size_x) };
 }
 
-void texture::load(std::wstring const& file_name) {
+void texture::load(native_string const& file_name) {
 	simple_fs::file tex{ file_name };
 	auto content = tex.content;
 	int32_t file_channels = 4;

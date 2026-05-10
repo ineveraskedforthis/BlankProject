@@ -77,13 +77,13 @@ class file {
 	void* file_buffer = nullptr;
 #endif
 
+public:
+
 	native_string absolute_path;
 	file_contents content;
 
 	file(native_string const& full_path);
 	file(int file_descriptor, native_string const& full_path);
-
-public:
 	file(file const& other) = delete;
 	file(file&& other) noexcept;
 	void operator=(file const& other) = delete;

@@ -15,7 +15,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 
 list(APPEND PROGRAM_CORE_SOURCES_LIST
-	"src/main.cpp"
 	"src/gui/alice_ui.cpp"
 	"src/lunasvg/graphics.cpp"
 	"src/lunasvg/lunasvg.cpp"
